@@ -9,46 +9,83 @@ struct ContentView: View {
     @State private var showPDFPicker = false
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text(vm.isConnected ? "Conectado" : "Desconectado")
-                    .font(.headline)
-                Spacer()
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(uiColor: .systemBackground),
+                        Color(uiColor: .secondarySystemBackground)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                Button("📄") {
-                    showPDFPicker = true
-                }
-                .disabled(!vm.isConnected)
-
-                Button("📷") {
-                    // Simulator typically has no camera. Fall back to photo library.
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        showCamera = true
-                    } else {
-                        showPhotoLibrary = true
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(vm.items) { item in
+                                ChatBubbleView(item: item)
+                                    .id(item.id)
+                            }
+                        }
+                        .padding(.top, 12)
+                        .padding(.bottom, 12)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: vm.items.count) {
+                        guard let last = vm.items.last else { return }
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
                     }
                 }
-                .disabled(!vm.isConnected)
+            }
+            .navigationTitle("OpenClawChat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(vm.isConnected ? Color.green : Color.gray)
+                            .frame(width: 8, height: 8)
+                        Text(vm.isConnected ? "Conectado" : "Desconectado")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-                Button(vm.isConnected ? "Salir" : "Conectar") {
-                    vm.isConnected ? vm.disconnect() : vm.connect()
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        showPDFPicker = true
+                    } label: {
+                        Image(systemName: "doc")
+                    }
+                    .disabled(!vm.isConnected)
+
+                    Button {
+                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                            showCamera = true
+                        } else {
+                            showPhotoLibrary = true
+                        }
+                    } label: {
+                        Image(systemName: "camera")
+                    }
+                    .disabled(!vm.isConnected)
+
+                    Button {
+                        vm.isConnected ? vm.disconnect() : vm.connect()
+                    } label: {
+                        Text(vm.isConnected ? "Salir" : "Conectar")
+                    }
                 }
             }
-            .padding(.horizontal)
-
-            List(vm.messages, id: \.self) { msg in
-                Text(msg)
-                    .font(.body)
+            .safeAreaInset(edge: .bottom) {
+                ComposerBar(text: $vm.draft, isEnabled: vm.isConnected) {
+                    vm.sendText()
+                }
             }
-
-            HStack {
-                TextField("Escribe…", text: $vm.draft)
-                    .textFieldStyle(.roundedBorder)
-                Button("Enviar") { vm.sendText() }
-                    .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal)
-            .padding(.bottom)
         }
         .sheet(isPresented: $showCamera) {
             CameraPicker(
@@ -59,7 +96,7 @@ struct ContentView: View {
                         vm.sendImage(jpegData: data, fileName: "camera.jpg", caption: vm.draft)
                         vm.draft = ""
                     } else {
-                        vm.messages.append("❌ No pude codificar la imagen")
+                        vm.items.append(.init(sender: .system, text: "No pude codificar la imagen", style: .error))
                     }
                 },
                 onCancel: {
@@ -76,7 +113,7 @@ struct ContentView: View {
                         vm.sendImage(jpegData: data, fileName: "photo.jpg", caption: vm.draft)
                         vm.draft = ""
                     } else {
-                        vm.messages.append("❌ No pude codificar la imagen")
+                        vm.items.append(.init(sender: .system, text: "No pude codificar la imagen", style: .error))
                     }
                 },
                 onCancel: {
@@ -89,7 +126,6 @@ struct ContentView: View {
                 allowedTypes: [.pdf],
                 onPick: { url in
                     showPDFPicker = false
-                    // Use the current draft as the question to the PDF (optional)
                     let q = vm.draft
                     vm.draft = ""
                     vm.sendPDF(fileURL: url, prompt: q)
@@ -106,7 +142,6 @@ struct ContentView: View {
                 vm.connect()
 
                 if let autoMsg = env["OPENCLAW_AUTO_MESSAGE"], !autoMsg.isEmpty {
-                    // Give the WS handshake a moment before sending.
                     try? await Task.sleep(nanoseconds: 1_200_000_000)
                     vm.draft = autoMsg
                     vm.sendText()
@@ -114,12 +149,7 @@ struct ContentView: View {
             }
 
             if env["OPENCLAW_AUTO_PDF_HELLO"] == "1" {
-                if !vm.isConnected {
-                    vm.connect()
-                }
-
-                // Wait for WS connect (not strictly required for /v1/responses,
-                // but keeps the UI consistent).
+                if !vm.isConnected { vm.connect() }
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
 
                 let b64 = "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA1NSA+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjcyIDcyMCBUZAooSGVsbG8gT3BlbkNsYXcgUERGKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM0NiAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQxNgolJUVPRgo="
@@ -128,7 +158,7 @@ struct ContentView: View {
                     try? data.write(to: url, options: [.atomic])
                     vm.sendPDF(fileURL: url, prompt: "Resume este PDF en una frase.")
                 } else {
-                    vm.messages.append("❌ No pude decodificar el PDF de prueba")
+                    vm.items.append(.init(sender: .system, text: "No pude decodificar el PDF de prueba", style: .error))
                 }
             }
         }

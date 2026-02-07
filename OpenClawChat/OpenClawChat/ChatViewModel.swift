@@ -4,23 +4,23 @@ import OpenClawWS
 
 @MainActor
 final class ChatViewModel: ObservableObject {
-    @Published var messages: [String] = []
+    @Published var items: [ChatItem] = []
     @Published var draft: String = ""
     @Published var isConnected = false
 
+    let sessionKey: String
     private let chatService: ChatService
-    private let sessionKey: String
     private var streamTask: Task<Void, Never>?
 
     init(chatService: ChatService, sessionKey: String) {
         self.chatService = chatService
         self.sessionKey = sessionKey
-        messages.append("sessionKey=\(sessionKey)")
+        items.append(.init(sender: .system, text: "sessionKey=\(sessionKey)", style: .status))
     }
 
     func connect() {
         guard !OpenClawConfig.gatewayToken.isEmpty else {
-            messages.append("⚠️ Falta OPENCLAW_GATEWAY_TOKEN (env var)")
+            items.append(.init(sender: .system, text: "Falta OPENCLAW_GATEWAY_TOKEN (env var)", style: .error))
             return
         }
 
@@ -28,9 +28,10 @@ final class ChatViewModel: ObservableObject {
             do {
                 _ = try await chatService.connect()
                 isConnected = true
+                items.append(.init(sender: .system, text: "Conectado", style: .status))
                 listen()
             } catch {
-                messages.append("❌ Error conectando: \(error.localizedDescription)")
+                items.append(.init(sender: .system, text: "Error conectando: \(error.localizedDescription)", style: .error))
             }
         }
     }
@@ -40,30 +41,28 @@ final class ChatViewModel: ObservableObject {
         streamTask = nil
         Task { await chatService.disconnect() }
         isConnected = false
+        items.append(.init(sender: .system, text: "Desconectado", style: .status))
     }
 
     func sendText() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         draft = ""
-        messages.append("🧑 \(text)")
+        items.append(.init(sender: .user, text: text))
 
         Task {
             do {
                 _ = try await chatService.send(sessionKey: sessionKey, text: text)
             } catch {
-                messages.append("❌ Error enviando: \(error.localizedDescription)")
+                items.append(.init(sender: .system, text: "Error enviando: \(error.localizedDescription)", style: .error))
             }
         }
     }
 
     func sendImage(jpegData: Data, fileName: String = "camera.jpg", caption: String? = nil) {
         let captionText = (caption ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !captionText.isEmpty {
-            messages.append("🧑 [imagen] \(captionText)")
-        } else {
-            messages.append("🧑 [imagen]")
-        }
+        let label = captionText.isEmpty ? "Imagen" : "Imagen: \(captionText)"
+        items.append(.init(sender: .user, text: label))
 
         Task {
             do {
@@ -75,7 +74,7 @@ final class ChatViewModel: ObservableObject {
                     ]
                 )
             } catch {
-                messages.append("❌ Error enviando imagen: \(error.localizedDescription)")
+                items.append(.init(sender: .system, text: "Error enviando imagen: \(error.localizedDescription)", style: .error))
             }
         }
     }
@@ -85,23 +84,22 @@ final class ChatViewModel: ObservableObject {
             let stream = await chatService.streamChatEvents()
             for await event in stream {
                 // Important: the gateway can broadcast chat events for other sessions.
-                // Filter to only show events for our sessionKey.
                 guard event.sessionKey == self.sessionKey else { continue }
 
                 if event.state == "delta" || event.state == "final" {
                     let text = event.message?.content?.first(where: { $0.type == "text" })?.text ?? ""
                     if !text.isEmpty {
-                        messages.append("🤖 \(text)")
+                        items.append(.init(sender: .assistant, text: text))
                     }
                 } else if event.state == "error" {
-                    messages.append("⚠️ \(event.errorMessage ?? "Error desconocido")")
+                    items.append(.init(sender: .system, text: event.errorMessage ?? "Error desconocido", style: .error))
                 }
             }
         }
     }
 
     func sendPDF(fileURL: URL, prompt: String? = nil) {
-        messages.append("🧑 [PDF] \(fileURL.lastPathComponent)")
+        items.append(.init(sender: .user, text: "PDF: \(fileURL.lastPathComponent)"))
 
         Task {
             do {
@@ -124,9 +122,9 @@ final class ChatViewModel: ObservableObject {
                     fileName: fileURL.lastPathComponent
                 )
 
-                messages.append("🤖 \(answer)")
+                items.append(.init(sender: .assistant, text: answer))
             } catch {
-                messages.append("❌ Error enviando PDF: \(error.localizedDescription)")
+                items.append(.init(sender: .system, text: "Error enviando PDF: \(error.localizedDescription)", style: .error))
             }
         }
     }
