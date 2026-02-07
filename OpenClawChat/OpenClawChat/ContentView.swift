@@ -112,6 +112,25 @@ struct ContentView: View {
                     vm.sendText()
                 }
             }
+
+            if env["OPENCLAW_AUTO_PDF_HELLO"] == "1" {
+                if !vm.isConnected {
+                    vm.connect()
+                }
+
+                // Wait for WS connect (not strictly required for /v1/responses,
+                // but keeps the UI consistent).
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+
+                let b64 = "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA1NSA+PgpzdHJlYW0KQlQKL0YxIDI0IFRmCjcyIDcyMCBUZAooSGVsbG8gT3BlbkNsYXcgUERGKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM0NiAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQxNgolJUVPRgo="
+                if let data = Data(base64Encoded: b64) {
+                    let url = FileManager.default.temporaryDirectory.appendingPathComponent("hello.pdf")
+                    try? data.write(to: url, options: [.atomic])
+                    vm.sendPDF(fileURL: url, prompt: "Resume este PDF en una frase.")
+                } else {
+                    vm.messages.append("❌ No pude decodificar el PDF de prueba")
+                }
+            }
         }
     }
 }

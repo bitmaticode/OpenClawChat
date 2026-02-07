@@ -47,7 +47,7 @@ struct OpenResponsesClient {
 
             case .inputFile(let filename, let mimeType, let base64):
                 try container.encode("input_file", forKey: .type)
-                try container.encode(FileSource(source: .base64(mediaType: mimeType, data: base64, filename: filename)), forKey: .source)
+                try container.encode(InputFileSource.base64(mediaType: mimeType, data: base64, filename: filename), forKey: .source)
             }
         }
 
@@ -58,29 +58,25 @@ struct OpenResponsesClient {
         }
     }
 
-    struct FileSource: Encodable {
-        let source: Source
+    enum InputFileSource: Encodable {
+        case base64(mediaType: String, data: String, filename: String?)
 
-        enum Source: Encodable {
-            case base64(mediaType: String, data: String, filename: String?)
-
-            func encode(to encoder: Encoder) throws {
-                var container = encoder.container(keyedBy: CodingKeys.self)
-                switch self {
-                case .base64(let mediaType, let data, let filename):
-                    try container.encode("base64", forKey: .type)
-                    try container.encode(mediaType, forKey: .mediaType)
-                    try container.encode(data, forKey: .data)
-                    try container.encodeIfPresent(filename, forKey: .filename)
-                }
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            switch self {
+            case .base64(let mediaType, let data, let filename):
+                try container.encode("base64", forKey: .type)
+                try container.encode(mediaType, forKey: .mediaType)
+                try container.encode(data, forKey: .data)
+                try container.encodeIfPresent(filename, forKey: .filename)
             }
+        }
 
-            enum CodingKeys: String, CodingKey {
-                case type
-                case mediaType = "media_type"
-                case data
-                case filename
-            }
+        enum CodingKeys: String, CodingKey {
+            case type
+            case mediaType = "media_type"
+            case data
+            case filename
         }
     }
 

@@ -84,6 +84,10 @@ final class ChatViewModel: ObservableObject {
         streamTask = Task {
             let stream = await chatService.streamChatEvents()
             for await event in stream {
+                // Important: the gateway can broadcast chat events for other sessions.
+                // Filter to only show events for our sessionKey.
+                guard event.sessionKey == self.sessionKey else { continue }
+
                 if event.state == "delta" || event.state == "final" {
                     let text = event.message?.content?.first(where: { $0.type == "text" })?.text ?? ""
                     if !text.isEmpty {
