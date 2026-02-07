@@ -6,6 +6,7 @@ struct ContentView: View {
 
     @State private var showCamera = false
     @State private var showPhotoLibrary = false
+    @State private var showPDFPicker = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -13,6 +14,11 @@ struct ContentView: View {
                 Text(vm.isConnected ? "Conectado" : "Desconectado")
                     .font(.headline)
                 Spacer()
+
+                Button("📄") {
+                    showPDFPicker = true
+                }
+                .disabled(!vm.isConnected)
 
                 Button("📷") {
                     // Simulator typically has no camera. Fall back to photo library.
@@ -75,6 +81,21 @@ struct ContentView: View {
                 },
                 onCancel: {
                     showPhotoLibrary = false
+                }
+            )
+        }
+        .sheet(isPresented: $showPDFPicker) {
+            DocumentPicker(
+                allowedTypes: [.pdf],
+                onPick: { url in
+                    showPDFPicker = false
+                    // Use the current draft as the question to the PDF (optional)
+                    let q = vm.draft
+                    vm.draft = ""
+                    vm.sendPDF(fileURL: url, prompt: q)
+                },
+                onCancel: {
+                    showPDFPicker = false
                 }
             )
         }

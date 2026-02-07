@@ -95,4 +95,35 @@ final class ChatViewModel: ObservableObject {
             }
         }
     }
+
+    func sendPDF(fileURL: URL, prompt: String? = nil) {
+        messages.append("🧑 [PDF] \(fileURL.lastPathComponent)")
+
+        Task {
+            do {
+                let data = try Data(contentsOf: fileURL)
+                let maxBytes = 5_000_000
+                if data.count > maxBytes {
+                    throw NSError(domain: "OpenClawChat", code: 1, userInfo: [
+                        NSLocalizedDescriptionKey: "PDF demasiado grande: \(data.count) bytes (máximo \(maxBytes))"
+                    ])
+                }
+
+                let client = OpenResponsesClient(baseURL: OpenClawConfig.responsesURL, token: OpenClawConfig.gatewayToken, agentId: "opus")
+                let question = (prompt?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+                let p = question ?? "Analiza este PDF y dame un resumen y puntos clave."
+
+                let answer = try await client.sendPDF(
+                    sessionKey: sessionKey,
+                    prompt: p,
+                    pdfData: data,
+                    fileName: fileURL.lastPathComponent
+                )
+
+                messages.append("🤖 \(answer)")
+            } catch {
+                messages.append("❌ Error enviando PDF: \(error.localizedDescription)")
+            }
+        }
+    }
 }

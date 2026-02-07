@@ -11,6 +11,16 @@ enum OpenClawConfig {
         return URL(string: "wss://mac-mini-de-carlos.tail23b32.ts.net")!
     }
 
+    /// OpenResponses HTTP endpoint base.
+    /// Override at runtime with env var: OPENCLAW_RESPONSES_URL
+    static var responsesURL: URL {
+        if let s = ProcessInfo.processInfo.environment["OPENCLAW_RESPONSES_URL"],
+           let url = URL(string: s) {
+            return url
+        }
+        return URL(string: "https://mac-mini-de-carlos.tail23b32.ts.net/v1/responses")!
+    }
+
     /// Provide at runtime with env var: OPENCLAW_GATEWAY_TOKEN
     static var gatewayToken: String {
         ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_TOKEN"] ?? ""
