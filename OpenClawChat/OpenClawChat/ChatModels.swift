@@ -13,13 +13,14 @@ enum ChatItemStyle: Sendable {
 }
 
 struct ChatItem: Identifiable, Sendable {
-    let id: UUID = UUID()
+    var id: UUID
     let sender: ChatSender
-    let text: String
+    var text: String
     let style: ChatItemStyle
     let createdAt: Date
 
-    init(sender: ChatSender, text: String, style: ChatItemStyle = .normal, createdAt: Date = Date()) {
+    init(id: UUID = UUID(), sender: ChatSender, text: String, style: ChatItemStyle = .normal, createdAt: Date = Date()) {
+        self.id = id
         self.sender = sender
         self.text = text
         self.style = style

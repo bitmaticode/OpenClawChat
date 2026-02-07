@@ -17,6 +17,11 @@ final class ChatViewModel: ObservableObject {
 
     private var cachedThreads: [String: [ChatItem]] = [:]
 
+    // Streaming aggregation (so deltas update a single bubble instead of creating many).
+    private var streamingRunId: String?
+    private var streamingItemId: UUID?
+    private var streamingLastSeq: Int?
+
     init(chatService: ChatService, sessionKey: String) {
         self.chatService = chatService
         self.baseSessionKey = sessionKey.lowercased()
@@ -132,15 +137,73 @@ final class ChatViewModel: ObservableObject {
                 guard event.sessionKey == self.sessionKey else { continue }
 
                 if event.state == "delta" || event.state == "final" {
-                    let text = event.message?.content?.first(where: { $0.type == "text" })?.text ?? ""
-                    if !text.isEmpty {
-                        items.append(.init(sender: .assistant, text: text))
+                    let newText = event.message?.content?.first(where: { $0.type == "text" })?.text ?? ""
+                    if !newText.isEmpty {
+                        applyStreamingText(newText, runId: event.runId, seq: event.seq)
+                    }
+
+                    if event.state == "final" {
+                        streamingRunId = nil
+                        streamingItemId = nil
+                        streamingLastSeq = nil
                     }
                 } else if event.state == "error" {
+                    streamingRunId = nil
+                    streamingItemId = nil
+                    streamingLastSeq = nil
                     items.append(.init(sender: .system, text: event.errorMessage ?? "Error desconocido", style: .error))
                 }
             }
         }
+    }
+
+    private func applyStreamingText(_ newText: String, runId: String, seq: Int) {
+        // If this is a new run, start a new assistant bubble.
+        if streamingRunId != runId || streamingItemId == nil {
+            let item = ChatItem(sender: .assistant, text: newText)
+            streamingRunId = runId
+            streamingItemId = item.id
+            streamingLastSeq = seq
+            items.append(item)
+            return
+        }
+
+        // Drop out-of-order seqs (shouldn't happen, but protects against reconnect weirdness).
+        if let last = streamingLastSeq, seq < last {
+            return
+        }
+        streamingLastSeq = seq
+
+        guard let id = streamingItemId,
+              let idx = items.lastIndex(where: { $0.id == id }) else {
+            // Fallback: create a new bubble.
+            let item = ChatItem(sender: .assistant, text: newText)
+            streamingRunId = runId
+            streamingItemId = item.id
+            items.append(item)
+            return
+        }
+
+        let current = items[idx].text
+        items[idx].text = mergeStreamingText(current: current, incoming: newText)
+    }
+
+    /// Some gateways send true deltas (append-only), others send the full text-so-far.
+    /// This tries to do the right thing without duplicating content.
+    private func mergeStreamingText(current: String, incoming: String) -> String {
+        if current.isEmpty { return incoming }
+
+        // Cumulative update: incoming contains current as prefix.
+        if incoming.hasPrefix(current) { return incoming }
+
+        // If current already ends with incoming (duplicate), keep current.
+        if current.hasSuffix(incoming) { return current }
+
+        // If incoming is a strict prefix of current (rare), keep the longer one.
+        if current.hasPrefix(incoming) { return current }
+
+        // Otherwise treat as delta.
+        return current + incoming
     }
 
     func sendPDF(fileURL: URL, prompt: String? = nil) {
