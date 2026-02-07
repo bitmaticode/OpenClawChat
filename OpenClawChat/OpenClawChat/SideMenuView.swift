@@ -32,16 +32,16 @@ struct SideMenuView: View {
 
                     Picker("Agente", selection: $vm.selectedAgent) {
                         ForEach(AgentId.allCases) { agent in
-                            VStack(alignment: .leading) {
-                                Text(agent.title)
-                                if let d = agent.detail {
-                                    Text(d).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            .tag(agent)
+                            Text(agent.title).tag(agent)
                         }
                     }
-                    .pickerStyle(.inline)
+                    .pickerStyle(.segmented)
+
+                    if let d = vm.selectedAgent.detail {
+                        Text(d)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
