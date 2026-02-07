@@ -1,0 +1,350 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		003E5565AB736279ACC8101B /* OpenClawWS in Frameworks */ = {isa = PBXBuildFile; productRef = 3559DE98399EB16752649DD1 /* OpenClawWS */; };
+		1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */; };
+		6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */; };
+		81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */; };
+		A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90705A1C55FF63133B2D2E73 /* ContentView.swift */; };
+		AFD9CEECEB17FC4C0C65E8BB /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */; };
+		B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80963DFD7DD22321274AECC5 /* CameraPicker.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		469A37867EE887B34FFE9659 /* ios-openclaw-ws-mvp */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "ios-openclaw-ws-mvp"; path = "../ios-openclaw-ws-mvp"; sourceTree = SOURCE_ROOT; };
+		5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawChatApp.swift; sourceTree = "<group>"; };
+		7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawBootstrap.swift; sourceTree = "<group>"; };
+		80963DFD7DD22321274AECC5 /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
+		81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawConfig.swift; sourceTree = "<group>"; };
+		90705A1C55FF63133B2D2E73 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D752469894570E9E323ED21E /* OpenClawChat.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenClawChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		51AD4060C5AC64495BFA5889 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				003E5565AB736279ACC8101B /* OpenClawWS in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		28D66839155199C784409048 /* OpenClawChat */ = {
+			isa = PBXGroup;
+			children = (
+				80963DFD7DD22321274AECC5 /* CameraPicker.swift */,
+				3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */,
+				90705A1C55FF63133B2D2E73 /* ContentView.swift */,
+				7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */,
+				5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */,
+				81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */,
+			);
+			path = OpenClawChat;
+			sourceTree = "<group>";
+		};
+		52B153CFA6E92C77140C38FE /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				469A37867EE887B34FFE9659 /* ios-openclaw-ws-mvp */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		C6F322459D2EDE45AB6186D0 = {
+			isa = PBXGroup;
+			children = (
+				28D66839155199C784409048 /* OpenClawChat */,
+				52B153CFA6E92C77140C38FE /* Packages */,
+				C73AD806DE087E5D74D544A8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C73AD806DE087E5D74D544A8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D752469894570E9E323ED21E /* OpenClawChat.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		513800197B1C646CE1CD5BDD /* OpenClawChat */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 88D0112901C1FD5FBB9651AD /* Build configuration list for PBXNativeTarget "OpenClawChat" */;
+			buildPhases = (
+				584AC5EFD82A24F469650CBE /* Sources */,
+				51AD4060C5AC64495BFA5889 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenClawChat;
+			packageProductDependencies = (
+				3559DE98399EB16752649DD1 /* OpenClawWS */,
+			);
+			productName = OpenClawChat;
+			productReference = D752469894570E9E323ED21E /* OpenClawChat.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F54E26BAC75379C29FDFF6A6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					513800197B1C646CE1CD5BDD = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = F3C1D0205FFE7E0306546B95 /* Build configuration list for PBXProject "OpenClawChat" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C6F322459D2EDE45AB6186D0;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2A843D24483634ECF4FE177B /* XCLocalSwiftPackageReference "../ios-openclaw-ws-mvp" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				513800197B1C646CE1CD5BDD /* OpenClawChat */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		584AC5EFD82A24F469650CBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */,
+				AFD9CEECEB17FC4C0C65E8BB /* ChatViewModel.swift in Sources */,
+				A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */,
+				6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */,
+				81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */,
+				1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		891C3F85B9BE914CACB34E08 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Necesitamos la cámara para enviar imágenes al chat.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Necesitamos acceso a Fotos para seleccionar imágenes y enviarlas al chat.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.openclaw.OpenClawChat;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AE0EAB04A47CCB62F9B30B71 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Necesitamos la cámara para enviar imágenes al chat.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Necesitamos acceso a Fotos para seleccionar imágenes y enviarlas al chat.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.openclaw.OpenClawChat;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CEBF020FE7DF1DA33A3D4450 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		FAE3D64DA2553914B769E10A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		88D0112901C1FD5FBB9651AD /* Build configuration list for PBXNativeTarget "OpenClawChat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				891C3F85B9BE914CACB34E08 /* Debug */,
+				AE0EAB04A47CCB62F9B30B71 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F3C1D0205FFE7E0306546B95 /* Build configuration list for PBXProject "OpenClawChat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FAE3D64DA2553914B769E10A /* Debug */,
+				CEBF020FE7DF1DA33A3D4450 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		2A843D24483634ECF4FE177B /* XCLocalSwiftPackageReference "../ios-openclaw-ws-mvp" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../ios-openclaw-ws-mvp";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3559DE98399EB16752649DD1 /* OpenClawWS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OpenClawWS;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = F54E26BAC75379C29FDFF6A6 /* Project object */;
+}

@@ -1,0 +1,26 @@
+name: OpenClawChat
+options:
+  bundleIdPrefix: ai.openclaw
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: 17.0
+packages:
+  OpenClawWS:
+    path: ../ios-openclaw-ws-mvp
+
+targets:
+  OpenClawChat:
+    type: application
+    platform: iOS
+    sources:
+      - path: OpenClawChat
+    dependencies:
+      - package: OpenClawWS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.openclaw.OpenClawChat
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: "Necesitamos la cámara para enviar imágenes al chat."
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Necesitamos acceso a Fotos para seleccionar imágenes y enviarlas al chat."
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
