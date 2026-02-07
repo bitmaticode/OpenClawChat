@@ -8,14 +8,31 @@ final class ChatViewModel: ObservableObject {
     @Published var draft: String = ""
     @Published var isConnected = false
 
-    let sessionKey: String
+    @Published var selectedAgent: AgentId
+    @Published private(set) var sessionKey: String
+
+    private let baseSessionKey: String
     private let chatService: ChatService
     private var streamTask: Task<Void, Never>?
 
+    private var cachedThreads: [String: [ChatItem]] = [:]
+
     init(chatService: ChatService, sessionKey: String) {
         self.chatService = chatService
-        self.sessionKey = sessionKey
-        items.append(.init(sender: .system, text: "sessionKey=\(sessionKey)", style: .status))
+        self.baseSessionKey = sessionKey.lowercased()
+
+        let agent = SessionKeyTools.agent(from: sessionKey) ?? .opus
+        self.selectedAgent = agent
+        self.sessionKey = SessionKeyTools.withAgent(agent, baseSessionKey: self.baseSessionKey)
+
+        items = Self.bootstrapItems(sessionKey: self.sessionKey, agent: agent)
+    }
+
+    private static func bootstrapItems(sessionKey: String, agent: AgentId) -> [ChatItem] {
+        [
+            .init(sender: .system, text: "Agente: \(agent.title)", style: .status),
+            .init(sender: .system, text: "sessionKey=\(sessionKey)", style: .status)
+        ]
     }
 
     func connect() {
@@ -36,12 +53,40 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    func disconnect() {
+    func disconnect(showStatus: Bool = true) {
         streamTask?.cancel()
         streamTask = nil
         Task { await chatService.disconnect() }
         isConnected = false
-        items.append(.init(sender: .system, text: "Desconectado", style: .status))
+        if showStatus {
+            items.append(.init(sender: .system, text: "Desconectado", style: .status))
+        }
+    }
+
+    func applySelectedAgent(_ agent: AgentId) {
+        let newKey = SessionKeyTools.withAgent(agent, baseSessionKey: baseSessionKey)
+        guard newKey != sessionKey else { return }
+
+        // Cache current thread.
+        cachedThreads[sessionKey] = items
+
+        let wasConnected = isConnected
+        if wasConnected {
+            disconnect(showStatus: false)
+        }
+
+        sessionKey = newKey
+
+        // Restore or bootstrap thread.
+        if let cached = cachedThreads[newKey] {
+            items = cached
+        } else {
+            items = Self.bootstrapItems(sessionKey: newKey, agent: agent)
+        }
+
+        if wasConnected {
+            connect()
+        }
     }
 
     func sendText() {
@@ -111,7 +156,7 @@ final class ChatViewModel: ObservableObject {
                     ])
                 }
 
-                let client = OpenResponsesClient(baseURL: OpenClawConfig.responsesURL, token: OpenClawConfig.gatewayToken, agentId: "opus")
+                let client = OpenResponsesClient(baseURL: OpenClawConfig.responsesURL, token: OpenClawConfig.gatewayToken, agentId: selectedAgent.rawValue)
                 let question = (prompt?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
                 let p = question ?? "Analiza este PDF y dame un resumen y puntos clave."
 

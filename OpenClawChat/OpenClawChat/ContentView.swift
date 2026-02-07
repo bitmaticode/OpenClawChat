@@ -45,17 +45,32 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(vm.isConnected ? Color.green : Color.gray)
-                            .frame(width: 8, height: 8)
-                        Text(vm.isConnected ? "Conectado" : "Desconectado")
-                            .font(.caption)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(vm.isConnected ? Color.green : Color.gray)
+                                .frame(width: 8, height: 8)
+                            Text(vm.isConnected ? "Conectado" : "Desconectado")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(vm.selectedAgent.title)
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("Agente", selection: $vm.selectedAgent) {
+                            ForEach(AgentId.allCases) { agent in
+                                Text(agent.title).tag(agent)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "person.crop.circle")
+                    }
+
                     Button {
                         showPDFPicker = true
                     } label: {
@@ -134,6 +149,9 @@ struct ContentView: View {
                     showPDFPicker = false
                 }
             )
+        }
+        .onChange(of: vm.selectedAgent) { _, newAgent in
+            vm.applySelectedAgent(newAgent)
         }
         .task {
             // Smoke-test helpers (only active when env vars are set)
