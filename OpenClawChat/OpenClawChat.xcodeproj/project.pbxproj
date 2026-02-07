@@ -11,18 +11,22 @@
 		06FB2949DA8948C91C11EAD7 /* ChatBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984A262B8835284D86758F6A /* ChatBubbleView.swift */; };
 		1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */; };
 		32FE739202D58A6F9B8A4009 /* DocumentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB34DD9125A3677D3439182B /* DocumentPicker.swift */; };
+		5F379B1D58D0F6AF7F981B7B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D0992582CF3041A64EAD0 /* AppSettings.swift */; };
 		622E214FD7CC832E7876129E /* AgentSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82066A14BBDDD0271499FBC5 /* AgentSelection.swift */; };
 		6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */; };
 		81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */; };
+		98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90674D038BC6B82650DF590 /* SideMenuView.swift */; };
 		9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */; };
 		A095C4C9481F1B6B911A2E0D /* ComposerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */; };
 		A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90705A1C55FF63133B2D2E73 /* ContentView.swift */; };
 		AFD9CEECEB17FC4C0C65E8BB /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */; };
 		B1C7DE5644A91CD47D4DD435 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3884A2A7239E0C3477587A /* ChatModels.swift */; };
 		B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80963DFD7DD22321274AECC5 /* CameraPicker.swift */; };
+		E85E19E00706C214B7D7777A /* DrawerContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7858EA488C7586A00B76AEC /* DrawerContainer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0B2D0992582CF3041A64EAD0 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerBar.swift; sourceTree = "<group>"; };
 		3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		469A37867EE887B34FFE9659 /* ios-openclaw-ws-mvp */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "ios-openclaw-ws-mvp"; path = "../ios-openclaw-ws-mvp"; sourceTree = SOURCE_ROOT; };
@@ -35,8 +39,10 @@
 		90705A1C55FF63133B2D2E73 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		984A262B8835284D86758F6A /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
 		A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenResponsesClient.swift; sourceTree = "<group>"; };
+		C90674D038BC6B82650DF590 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
 		CB34DD9125A3677D3439182B /* DocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPicker.swift; sourceTree = "<group>"; };
 		D752469894570E9E323ED21E /* OpenClawChat.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenClawChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7858EA488C7586A00B76AEC /* DrawerContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawerContainer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				82066A14BBDDD0271499FBC5 /* AgentSelection.swift */,
+				0B2D0992582CF3041A64EAD0 /* AppSettings.swift */,
 				80963DFD7DD22321274AECC5 /* CameraPicker.swift */,
 				984A262B8835284D86758F6A /* ChatBubbleView.swift */,
 				7F3884A2A7239E0C3477587A /* ChatModels.swift */,
@@ -62,10 +69,12 @@
 				27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */,
 				90705A1C55FF63133B2D2E73 /* ContentView.swift */,
 				CB34DD9125A3677D3439182B /* DocumentPicker.swift */,
+				D7858EA488C7586A00B76AEC /* DrawerContainer.swift */,
 				7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */,
 				5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */,
 				81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */,
 				A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */,
+				C90674D038BC6B82650DF590 /* SideMenuView.swift */,
 			);
 			path = OpenClawChat;
 			sourceTree = "<group>";
@@ -159,6 +168,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				622E214FD7CC832E7876129E /* AgentSelection.swift in Sources */,
+				5F379B1D58D0F6AF7F981B7B /* AppSettings.swift in Sources */,
 				B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */,
 				06FB2949DA8948C91C11EAD7 /* ChatBubbleView.swift in Sources */,
 				B1C7DE5644A91CD47D4DD435 /* ChatModels.swift in Sources */,
@@ -166,10 +176,12 @@
 				A095C4C9481F1B6B911A2E0D /* ComposerBar.swift in Sources */,
 				A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */,
 				32FE739202D58A6F9B8A4009 /* DocumentPicker.swift in Sources */,
+				E85E19E00706C214B7D7777A /* DrawerContainer.swift in Sources */,
 				6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */,
 				81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */,
 				1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */,
 				9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */,
+				98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -3,104 +3,100 @@ import UIKit
 
 struct ContentView: View {
     @StateObject var vm: ChatViewModel
+    @ObservedObject var settings: AppSettings
+
+    @State private var showDrawer = false
 
     @State private var showCamera = false
     @State private var showPhotoLibrary = false
     @State private var showPDFPicker = false
+    @State private var showPlusMenu = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(uiColor: .systemBackground),
-                        Color(uiColor: .secondarySystemBackground)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+        DrawerContainer(
+            isOpen: $showDrawer,
+            menu: AnyView(
+                SideMenuView(vm: vm, settings: settings) {
+                    showDrawer = false
+                }
+            )
+        ) {
+            NavigationStack {
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Color(uiColor: .systemBackground),
+                            Color(uiColor: .secondarySystemBackground)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(vm.items) { item in
-                                ChatBubbleView(item: item)
-                                    .id(item.id)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(vm.items) { item in
+                                    ChatBubbleView(item: item)
+                                        .id(item.id)
+                                }
                             }
+                            .padding(.top, 12)
+                            .padding(.bottom, 12)
                         }
-                        .padding(.top, 12)
-                        .padding(.bottom, 12)
-                    }
-                    .scrollDismissesKeyboard(.interactively)
-                    .onChange(of: vm.items.count) {
-                        guard let last = vm.items.last else { return }
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            proxy.scrollTo(last.id, anchor: .bottom)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .scrollDismissesKeyboard(.interactively)
+                        .onChange(of: vm.items.count) {
+                            guard let last = vm.items.last else { return }
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
                         }
                     }
                 }
-            }
-            .navigationTitle("OpenClawChat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    VStack(alignment: .leading, spacing: 2) {
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle("Chat")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showDrawer = true
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
+                        }
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 8) {
                             Circle()
                                 .fill(vm.isConnected ? Color.green : Color.gray)
                                 .frame(width: 8, height: 8)
-                            Text(vm.isConnected ? "Conectado" : "Desconectado")
+                            Text(vm.isConnected ? "OK" : "OFF")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text(vm.selectedAgent.title)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                     }
                 }
-
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Menu {
-                        Picker("Agente", selection: $vm.selectedAgent) {
-                            ForEach(AgentId.allCases) { agent in
-                                Text(agent.title).tag(agent)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "person.crop.circle")
-                    }
-
-                    Button {
-                        showPDFPicker = true
-                    } label: {
-                        Image(systemName: "doc")
-                    }
-                    .disabled(!vm.isConnected)
-
-                    Button {
-                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                            showCamera = true
-                        } else {
-                            showPhotoLibrary = true
-                        }
-                    } label: {
-                        Image(systemName: "camera")
-                    }
-                    .disabled(!vm.isConnected)
-
-                    Button {
-                        vm.isConnected ? vm.disconnect() : vm.connect()
-                    } label: {
-                        Text(vm.isConnected ? "Salir" : "Conectar")
-                    }
+                .safeAreaInset(edge: .bottom) {
+                    ComposerBar(text: $vm.draft, isEnabled: vm.isConnected, onPlus: {
+                        showPlusMenu = true
+                    }, onSend: {
+                        vm.sendText()
+                    })
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                ComposerBar(text: $vm.draft, isEnabled: vm.isConnected) {
-                    vm.sendText()
+        }
+        .confirmationDialog("Adjuntar", isPresented: $showPlusMenu, titleVisibility: .visible) {
+            Button("PDF") { showPDFPicker = true }
+            Button("Cámara") {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    showCamera = true
+                } else {
+                    showPhotoLibrary = true
                 }
             }
+            Button("Fotos") { showPhotoLibrary = true }
+            Button("Cancelar", role: .cancel) {}
         }
         .sheet(isPresented: $showCamera) {
             CameraPicker(
@@ -156,6 +152,12 @@ struct ContentView: View {
         .task {
             // Smoke-test helpers (only active when env vars are set)
             let env = ProcessInfo.processInfo.environment
+
+            if env["OPENCLAW_UI_DRAWER_OPEN"] == "1" {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                showDrawer = true
+            }
+
             if env["OPENCLAW_AUTOCONNECT"] == "1" {
                 vm.connect()
 
