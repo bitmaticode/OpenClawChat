@@ -17,7 +17,9 @@ struct ContentView: View {
             isOpen: $showDrawer,
             menu: AnyView(
                 SideMenuView(vm: vm, settings: settings) {
-                    showDrawer = false
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        showDrawer = false
+                    }
                 }
             )
         ) {
@@ -134,7 +136,9 @@ struct ContentView: View {
 
             if env["OPENCLAW_UI_DRAWER_OPEN"] == "1" {
                 try? await Task.sleep(nanoseconds: 400_000_000)
-                showDrawer = true
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    showDrawer = true
+                }
             }
 
             if env["OPENCLAW_AUTOCONNECT"] == "1" {
@@ -166,7 +170,9 @@ struct ContentView: View {
     private var topBar: some View {
         HStack(spacing: 12) {
             Button {
-                showDrawer = true
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    showDrawer = true
+                }
             } label: {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 18, weight: .semibold))

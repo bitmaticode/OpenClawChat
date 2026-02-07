@@ -21,9 +21,9 @@ final class ChatViewModel: ObservableObject {
         self.chatService = chatService
         self.baseSessionKey = sessionKey.lowercased()
 
-        let agent = SessionKeyTools.agent(from: sessionKey) ?? .opus
+        let agent = SessionKeyTools.selection(from: sessionKey) ?? .opus
         self.selectedAgent = agent
-        self.sessionKey = SessionKeyTools.withAgent(agent, baseSessionKey: self.baseSessionKey)
+        self.sessionKey = SessionKeyTools.sessionKey(for: agent, baseSessionKey: self.baseSessionKey)
 
         items = Self.bootstrapItems(sessionKey: self.sessionKey, agent: agent)
     }
@@ -64,7 +64,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     func applySelectedAgent(_ agent: AgentId) {
-        let newKey = SessionKeyTools.withAgent(agent, baseSessionKey: baseSessionKey)
+        let newKey = SessionKeyTools.sessionKey(for: agent, baseSessionKey: baseSessionKey)
         guard newKey != sessionKey else { return }
 
         // Cache current thread.

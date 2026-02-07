@@ -1,6 +1,7 @@
 import Foundation
 
 enum AgentId: String, CaseIterable, Identifiable, Sendable {
+    /// "Main" in OpenClaw isn't an agent id; it's the special sessionKey `agent:codex:main`.
     case main
     case opus
     case codex
@@ -19,7 +20,7 @@ enum AgentId: String, CaseIterable, Identifiable, Sendable {
     var detail: String? {
         switch self {
         case .main:
-            return "Agente principal"
+            return "Sesión principal (agent:codex:main)"
         case .opus:
             return "Rápido y estable"
         case .codex:
@@ -29,22 +30,40 @@ enum AgentId: String, CaseIterable, Identifiable, Sendable {
 }
 
 enum SessionKeyTools {
-    /// Replaces the agent segment in a sessionKey that looks like: agent:<agentId>:<rest...>
-    /// If the format is unexpected, falls back to agent:<agentId>:openclawchat.
-    static func withAgent(_ agent: AgentId, baseSessionKey: String) -> String {
+    /// Returns the sessionKey that should be used for a given agent selection.
+    ///
+    /// Notes:
+    /// - `.main` maps to the special session key `agent:codex:main`.
+    /// - `.opus` / `.codex` rewrite only the agent segment: `agent:<agent>:<rest...>`
+    static func sessionKey(for agent: AgentId, baseSessionKey: String) -> String {
+        switch agent {
+        case .main:
+            return "agent:codex:main"
+        case .opus, .codex:
+            return withAgentSegment(agent.rawValue, baseSessionKey: baseSessionKey)
+        }
+    }
+
+    private static func withAgentSegment(_ agentId: String, baseSessionKey: String) -> String {
         let parts = baseSessionKey.lowercased().split(separator: ":", omittingEmptySubsequences: true)
         guard parts.count >= 3, parts[0] == "agent" else {
-            return "agent:\(agent.rawValue):openclawchat"
+            return "agent:\(agentId):openclawchat"
         }
 
         var newParts = parts
-        newParts[1] = Substring(agent.rawValue)
+        newParts[1] = Substring(agentId)
         return newParts.joined(separator: ":")
     }
 
-    static func agent(from sessionKey: String) -> AgentId? {
+    static func selection(from sessionKey: String) -> AgentId? {
         let parts = sessionKey.lowercased().split(separator: ":", omittingEmptySubsequences: true)
         guard parts.count >= 3, parts[0] == "agent" else { return nil }
+
+        // Special-case: main session.
+        if parts[1] == "codex", parts[2] == "main" {
+            return .main
+        }
+
         return AgentId(rawValue: String(parts[1]))
     }
 }
