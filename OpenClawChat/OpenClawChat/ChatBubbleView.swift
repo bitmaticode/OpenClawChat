@@ -7,11 +7,7 @@ struct ChatBubbleView: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            if !isUser {
-                avatar
-            } else {
-                Spacer(minLength: 44)
-            }
+            if isUser { Spacer(minLength: 40) }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
                 Text(item.text)
@@ -31,24 +27,10 @@ struct ChatBubbleView: View {
             }
             .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
-            if isUser {
-                avatar
-            } else {
-                Spacer(minLength: 44)
-            }
+            if !isUser { Spacer(minLength: 40) }
         }
         .padding(.horizontal)
         .padding(.vertical, 4)
-    }
-
-    @ViewBuilder
-    private var avatar: some View {
-        ZStack {
-            Circle().fill(.ultraThinMaterial)
-            Text(emoji)
-                .font(.system(size: 16))
-        }
-        .frame(width: 28, height: 28)
     }
 
     private var bubble: some ShapeStyle {
@@ -70,14 +52,6 @@ struct ChatBubbleView: View {
             return .primary
         case .error:
             return .red
-        }
-    }
-
-    private var emoji: String {
-        switch item.sender {
-        case .user: return "🧑"
-        case .assistant: return "🤖"
-        case .system: return "ℹ️"
         }
     }
 

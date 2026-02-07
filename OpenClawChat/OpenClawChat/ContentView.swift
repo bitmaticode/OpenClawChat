@@ -21,69 +21,48 @@ struct ContentView: View {
                 }
             )
         ) {
-            NavigationStack {
-                ZStack {
-                    LinearGradient(
-                        colors: [
-                            Color(uiColor: .systemBackground),
-                            Color(uiColor: .secondarySystemBackground)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea()
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(uiColor: .systemBackground),
+                        Color(uiColor: .secondarySystemBackground)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(vm.items) { item in
-                                    ChatBubbleView(item: item)
-                                        .id(item.id)
-                                }
-                            }
-                            .padding(.top, 12)
-                            .padding(.bottom, 12)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .scrollDismissesKeyboard(.interactively)
-                        .onChange(of: vm.items.count) {
-                            guard let last = vm.items.last else { return }
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                proxy.scrollTo(last.id, anchor: .bottom)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(vm.items) { item in
+                                ChatBubbleView(item: item)
+                                    .id(item.id)
                             }
                         }
+                        .padding(.vertical, 10)
                     }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle("Chat")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showDrawer = true
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                        }
-                    }
-
-                    ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(vm.isConnected ? Color.green : Color.gray)
-                                .frame(width: 8, height: 8)
-                            Text(vm.isConnected ? "OK" : "OFF")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: vm.items.count) {
+                        guard let last = vm.items.last else { return }
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
                         }
                     }
                 }
-                .safeAreaInset(edge: .bottom) {
-                    ComposerBar(text: $vm.draft, isEnabled: vm.isConnected, onPlus: {
-                        showPlusMenu = true
-                    }, onSend: {
-                        vm.sendText()
-                    })
-                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .top) {
+                topBar
+            }
+            .safeAreaInset(edge: .bottom) {
+                ComposerBar(
+                    text: $vm.draft,
+                    isEnabled: vm.isConnected,
+                    onPlus: { showPlusMenu = true },
+                    onSend: { vm.sendText() }
+                )
             }
         }
         .confirmationDialog("Adjuntar", isPresented: $showPlusMenu, titleVisibility: .visible) {
@@ -182,5 +161,33 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                showDrawer = true
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 18, weight: .semibold))
+            }
+
+            Text("Chat")
+                .font(.headline)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(vm.isConnected ? Color.green : Color.gray)
+                    .frame(width: 8, height: 8)
+                Text(vm.isConnected ? "OK" : "OFF")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.thinMaterial)
     }
 }

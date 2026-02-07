@@ -22,8 +22,12 @@ enum OpenClawConfig {
     }
 
     /// Provide at runtime with env var: OPENCLAW_GATEWAY_TOKEN
+    /// or set it from the in-app Settings menu (stored in Keychain).
     static var gatewayToken: String {
-        ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_TOKEN"] ?? ""
+        if let t = ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_TOKEN"], !t.isEmpty {
+            return t
+        }
+        return GatewayTokenStore.load()
     }
 
     /// Default routes to the Opus agent session to avoid Codex OAuth dependency.

@@ -29,6 +29,17 @@ enum ThemeMode: String, CaseIterable, Identifiable {
 final class AppSettings: ObservableObject {
     @AppStorage("themeMode") private var themeModeRaw: String = ThemeMode.system.rawValue
 
+    /// Persisted in Keychain (not UserDefaults).
+    @Published var gatewayToken: String {
+        didSet {
+            GatewayTokenStore.save(gatewayToken.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+    }
+
+    init() {
+        self.gatewayToken = GatewayTokenStore.load()
+    }
+
     var themeMode: ThemeMode {
         get { ThemeMode(rawValue: themeModeRaw) ?? .system }
         set {

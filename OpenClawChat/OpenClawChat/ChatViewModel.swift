@@ -37,7 +37,7 @@ final class ChatViewModel: ObservableObject {
 
     func connect() {
         guard !OpenClawConfig.gatewayToken.isEmpty else {
-            items.append(.init(sender: .system, text: "Falta OPENCLAW_GATEWAY_TOKEN (env var)", style: .error))
+            items.append(.init(sender: .system, text: "Falta el token del gateway. Ponlo en Menú → Gateway o como OPENCLAW_GATEWAY_TOKEN (env var).", style: .error))
             return
         }
 

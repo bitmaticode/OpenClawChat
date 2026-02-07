@@ -65,6 +65,22 @@ struct SideMenuView: View {
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
+                    Text("Gateway")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    SecureField("Token del gateway", text: $settings.gatewayToken)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+
+                    Text("Se guarda en el llavero (Keychain). Si defines OPENCLAW_GATEWAY_TOKEN como env var, esa tendrá prioridad.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("Conexión")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

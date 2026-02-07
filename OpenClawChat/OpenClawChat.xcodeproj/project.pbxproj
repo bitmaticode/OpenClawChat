@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -19,6 +19,7 @@
 		9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */; };
 		A095C4C9481F1B6B911A2E0D /* ComposerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */; };
 		A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90705A1C55FF63133B2D2E73 /* ContentView.swift */; };
+		A835BF6592950C45AEE1FBE8 /* GatewayTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D6F6C3620B67390B2F7266 /* GatewayTokenStore.swift */; };
 		AFD9CEECEB17FC4C0C65E8BB /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */; };
 		B1C7DE5644A91CD47D4DD435 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3884A2A7239E0C3477587A /* ChatModels.swift */; };
 		B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80963DFD7DD22321274AECC5 /* CameraPicker.swift */; };
@@ -39,9 +40,10 @@
 		90705A1C55FF63133B2D2E73 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		984A262B8835284D86758F6A /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
 		A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenResponsesClient.swift; sourceTree = "<group>"; };
+		C8D6F6C3620B67390B2F7266 /* GatewayTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayTokenStore.swift; sourceTree = "<group>"; };
 		C90674D038BC6B82650DF590 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
 		CB34DD9125A3677D3439182B /* DocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPicker.swift; sourceTree = "<group>"; };
-		D752469894570E9E323ED21E /* OpenClawChat.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenClawChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D752469894570E9E323ED21E /* OpenClawChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClawChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D7858EA488C7586A00B76AEC /* DrawerContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawerContainer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -70,6 +72,7 @@
 				90705A1C55FF63133B2D2E73 /* ContentView.swift */,
 				CB34DD9125A3677D3439182B /* DocumentPicker.swift */,
 				D7858EA488C7586A00B76AEC /* DrawerContainer.swift */,
+				C8D6F6C3620B67390B2F7266 /* GatewayTokenStore.swift */,
 				7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */,
 				5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */,
 				81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */,
@@ -153,7 +156,6 @@
 			packageReferences = (
 				2A843D24483634ECF4FE177B /* XCLocalSwiftPackageReference "../ios-openclaw-ws-mvp" */,
 			);
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -177,6 +179,7 @@
 				A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */,
 				32FE739202D58A6F9B8A4009 /* DocumentPicker.swift in Sources */,
 				E85E19E00706C214B7D7777A /* DrawerContainer.swift in Sources */,
+				A835BF6592950C45AEE1FBE8 /* GatewayTokenStore.swift in Sources */,
 				6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */,
 				81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */,
 				1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */,
@@ -194,6 +197,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = UAVT76BDCW;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Necesitamos la cámara para enviar imágenes al chat.";
@@ -215,6 +219,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = UAVT76BDCW;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Necesitamos la cámara para enviar imágenes al chat.";
