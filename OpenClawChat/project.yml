@@ -14,11 +14,14 @@ targets:
     platform: iOS
     sources:
       - path: OpenClawChat
+    resources:
+      - path: OpenClawChat/Assets.xcassets
     dependencies:
       - package: OpenClawWS
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.openclaw.OpenClawChat
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         INFOPLIST_KEY_NSCameraUsageDescription: "Necesitamos la cámara para enviar imágenes al chat."

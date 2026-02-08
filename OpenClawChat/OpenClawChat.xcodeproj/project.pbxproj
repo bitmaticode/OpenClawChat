@@ -11,6 +11,7 @@
 		06FB2949DA8948C91C11EAD7 /* ChatBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984A262B8835284D86758F6A /* ChatBubbleView.swift */; };
 		1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */; };
 		32FE739202D58A6F9B8A4009 /* DocumentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB34DD9125A3677D3439182B /* DocumentPicker.swift */; };
+		4DB5EDD9D19B01DCAA3FD774 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4360AD8082DAF3ECE68AC1E /* Assets.xcassets */; };
 		56E01EF439319A99230AAD64 /* ImageUploadEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF3FBC9DC7E22D4896D54C21 /* ImageUploadEncoder.swift */; };
 		5F379B1D58D0F6AF7F981B7B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D0992582CF3041A64EAD0 /* AppSettings.swift */; };
 		622E214FD7CC832E7876129E /* AgentSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82066A14BBDDD0271499FBC5 /* AgentSelection.swift */; };
@@ -47,6 +48,7 @@
 		84DE99D9D7F3586A00B65D4D /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		90705A1C55FF63133B2D2E73 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		984A262B8835284D86758F6A /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
+		A4360AD8082DAF3ECE68AC1E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenResponsesClient.swift; sourceTree = "<group>"; };
 		AA38787A03300B316B981F6F /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		BF3FBC9DC7E22D4896D54C21 /* ImageUploadEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageUploadEncoder.swift; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 			children = (
 				82066A14BBDDD0271499FBC5 /* AgentSelection.swift */,
 				0B2D0992582CF3041A64EAD0 /* AppSettings.swift */,
+				A4360AD8082DAF3ECE68AC1E /* Assets.xcassets */,
 				110BC8CADDC438813286E593 /* AttachmentStore.swift */,
 				80963DFD7DD22321274AECC5 /* CameraPicker.swift */,
 				984A262B8835284D86758F6A /* ChatBubbleView.swift */,
@@ -187,6 +190,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4DB5EDD9D19B01DCAA3FD774 /* Assets.xcassets in Resources */,
 				E7052B94300DA3A36F9F8E51 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
