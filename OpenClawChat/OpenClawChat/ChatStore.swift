@@ -41,4 +41,14 @@ enum ChatStore {
             // Best-effort persistence.
         }
     }
+
+    static func clear(sessionKey: String) {
+        do {
+            let dir = try baseDir()
+            let url = dir.appendingPathComponent(safeFilename(for: sessionKey))
+            try? FileManager.default.removeItem(at: url)
+        } catch {
+            // Best-effort.
+        }
+    }
 }

@@ -12,6 +12,9 @@ final class ChatViewModel: ObservableObject {
     @Published var selectedAgent: AgentId
     @Published private(set) var sessionKey: String
 
+    @Published private(set) var isStreaming: Bool = false
+    @Published private(set) var streamingBubbleId: UUID?
+
     private let baseSessionKey: String
     private var chatService: ChatService
     private let makeChatService: (URL, String) throws -> ChatService
@@ -31,6 +34,7 @@ final class ChatViewModel: ObservableObject {
     private var streamingRunId: String?
     private var streamingItemId: UUID?
     private var streamingLastSeq: Int?
+    private var streamingActiveRunId: String?
 
     // TTS
     private let speech = SpeechManager()
@@ -88,6 +92,30 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    func abort() {
+        let runId = streamingActiveRunId
+        isStreaming = false
+        streamingActiveRunId = nil
+        streamingBubbleId = nil
+        speech.stop()
+
+        Task {
+            do {
+                try await chatService.abort(sessionKey: sessionKey, runId: runId)
+                items.append(.init(sender: .system, text: "Abortado", style: .status))
+            } catch {
+                items.append(.init(sender: .system, text: "Error abortando: \(error.localizedDescription)", style: .error))
+            }
+        }
+    }
+
+    func clearThread() {
+        disconnect(showStatus: false)
+        ChatStore.clear(sessionKey: sessionKey)
+        items = Self.bootstrapItems(sessionKey: sessionKey, agent: selectedAgent)
+        items.append(.init(sender: .system, text: "Historial borrado", style: .status))
+    }
+
     func connect() {
         guard !OpenClawConfig.gatewayToken.isEmpty else {
             items.append(.init(sender: .system, text: "Falta el token del gateway. Ponlo en Menú → Gateway o como OPENCLAW_GATEWAY_TOKEN (env var).", style: .error))
@@ -135,7 +163,8 @@ final class ChatViewModel: ObservableObject {
         let newKey = SessionKeyTools.sessionKey(for: agent, baseSessionKey: baseSessionKey)
         guard newKey != sessionKey else { return }
 
-        // Cache current thread.
+        // Flush persistence + cache current thread.
+        ChatStore.save(sessionKey: sessionKey, items: items)
         cachedThreads[sessionKey] = items
 
         let wasConnected = isConnected
@@ -145,6 +174,10 @@ final class ChatViewModel: ObservableObject {
             // Even if disconnected, stop any ongoing TTS.
             speech.stop()
         }
+
+        isStreaming = false
+        streamingActiveRunId = nil
+        streamingBubbleId = nil
 
         sessionKey = newKey
 
@@ -205,6 +238,9 @@ final class ChatViewModel: ObservableObject {
                 guard event.sessionKey == self.sessionKey else { continue }
 
                 if event.state == "delta" || event.state == "final" {
+                    streamingActiveRunId = event.runId
+                    isStreaming = (event.state == "delta")
+
                     let newText = event.message?.content?.first(where: { $0.type == "text" })?.text ?? ""
                     if !newText.isEmpty {
                         applyStreamingText(newText, runId: event.runId, seq: event.seq, isFinal: event.state == "final")
@@ -213,11 +249,19 @@ final class ChatViewModel: ObservableObject {
                     }
 
                     if event.state == "final" {
+                        isStreaming = false
+                        streamingActiveRunId = nil
+                        streamingBubbleId = nil
+
                         streamingRunId = nil
                         streamingItemId = nil
                         streamingLastSeq = nil
                     }
                 } else if event.state == "error" {
+                    isStreaming = false
+                    streamingActiveRunId = nil
+                    streamingBubbleId = nil
+
                     streamingRunId = nil
                     streamingItemId = nil
                     streamingLastSeq = nil
@@ -234,6 +278,7 @@ final class ChatViewModel: ObservableObject {
             let item = ChatItem(sender: .assistant, text: newText)
             streamingRunId = runId
             streamingItemId = item.id
+            streamingBubbleId = item.id
             streamingLastSeq = seq
             items.append(item)
 

@@ -25,6 +25,8 @@
 		B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80963DFD7DD22321274AECC5 /* CameraPicker.swift */; };
 		E7052B94300DA3A36F9F8E51 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 84DE99D9D7F3586A00B65D4D /* LaunchScreen.storyboard */; };
 		E85E19E00706C214B7D7777A /* DrawerContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7858EA488C7586A00B76AEC /* DrawerContainer.swift */; };
+		F142DBD5FD2C893997662BAB /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA38787A03300B316B981F6F /* SpeechManager.swift */; };
+		FB2CC40408B1289A88DE5D99 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550B1651F8363B9517B4EC23 /* ChatStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +34,7 @@
 		27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerBar.swift; sourceTree = "<group>"; };
 		3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		469A37867EE887B34FFE9659 /* ios-openclaw-ws-mvp */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "ios-openclaw-ws-mvp"; path = "../ios-openclaw-ws-mvp"; sourceTree = SOURCE_ROOT; };
+		550B1651F8363B9517B4EC23 /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
 		5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawChatApp.swift; sourceTree = "<group>"; };
 		7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawBootstrap.swift; sourceTree = "<group>"; };
 		7F3884A2A7239E0C3477587A /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
@@ -42,6 +45,7 @@
 		90705A1C55FF63133B2D2E73 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		984A262B8835284D86758F6A /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
 		A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenResponsesClient.swift; sourceTree = "<group>"; };
+		AA38787A03300B316B981F6F /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		C8D6F6C3620B67390B2F7266 /* GatewayTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayTokenStore.swift; sourceTree = "<group>"; };
 		C90674D038BC6B82650DF590 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
 		CB34DD9125A3677D3439182B /* DocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPicker.swift; sourceTree = "<group>"; };
@@ -69,6 +73,7 @@
 				80963DFD7DD22321274AECC5 /* CameraPicker.swift */,
 				984A262B8835284D86758F6A /* ChatBubbleView.swift */,
 				7F3884A2A7239E0C3477587A /* ChatModels.swift */,
+				550B1651F8363B9517B4EC23 /* ChatStore.swift */,
 				3AF5C5C9DD9AC22E46CD1035 /* ChatViewModel.swift */,
 				27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */,
 				90705A1C55FF63133B2D2E73 /* ContentView.swift */,
@@ -81,6 +86,7 @@
 				81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */,
 				A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */,
 				C90674D038BC6B82650DF590 /* SideMenuView.swift */,
+				AA38787A03300B316B981F6F /* SpeechManager.swift */,
 			);
 			path = OpenClawChat;
 			sourceTree = "<group>";
@@ -191,6 +197,7 @@
 				B934C47B01C6FDBB469070CE /* CameraPicker.swift in Sources */,
 				06FB2949DA8948C91C11EAD7 /* ChatBubbleView.swift in Sources */,
 				B1C7DE5644A91CD47D4DD435 /* ChatModels.swift in Sources */,
+				FB2CC40408B1289A88DE5D99 /* ChatStore.swift in Sources */,
 				AFD9CEECEB17FC4C0C65E8BB /* ChatViewModel.swift in Sources */,
 				A095C4C9481F1B6B911A2E0D /* ComposerBar.swift in Sources */,
 				A48E17BE19686BCD8A4CD673 /* ContentView.swift in Sources */,
@@ -202,6 +209,7 @@
 				1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */,
 				9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */,
 				98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */,
+				F142DBD5FD2C893997662BAB /* SpeechManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

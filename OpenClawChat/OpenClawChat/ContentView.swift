@@ -14,6 +14,9 @@ struct ContentView: View {
     @State private var showPDFPicker = false
     @State private var showPlusMenu = false
 
+    // UX: only autoscroll if the user hasn't dragged up.
+    @State private var autoScrollEnabled = true
+
     var body: some View {
         DrawerContainer(
             isOpen: $showDrawer,
@@ -40,7 +43,7 @@ struct ContentView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(vm.items) { item in
-                                ChatBubbleView(item: item)
+                                ChatBubbleView(item: item, isStreaming: vm.streamingBubbleId == item.id)
                                     .id(item.id)
                             }
                         }
@@ -48,7 +51,30 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .scrollDismissesKeyboard(.interactively)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 10)
+                            .onChanged { _ in
+                                autoScrollEnabled = false
+                            }
+                    )
+                    .overlay(alignment: .bottomTrailing) {
+                        if !autoScrollEnabled {
+                            Button {
+                                guard let last = vm.items.last else { return }
+                                autoScrollEnabled = true
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
+                            } label: {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .symbolRenderingMode(.hierarchical)
+                                    .padding(12)
+                            }
+                        }
+                    }
                     .onChange(of: vm.items.count) {
+                        guard autoScrollEnabled else { return }
                         guard let last = vm.items.last else { return }
                         withAnimation(.easeOut(duration: 0.2)) {
                             proxy.scrollTo(last.id, anchor: .bottom)
@@ -61,12 +87,40 @@ struct ContentView: View {
                 topBar
             }
             .safeAreaInset(edge: .bottom) {
-                ComposerBar(
-                    text: $vm.draft,
-                    isEnabled: vm.isConnected,
-                    onPlus: { showPlusMenu = true },
-                    onSend: { vm.sendText() }
-                )
+                VStack(spacing: 0) {
+                    if let palette = commandPalette {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(palette) { cmd in
+                                Button {
+                                    vm.draft = cmd.template
+                                } label: {
+                                    HStack {
+                                        Text(cmd.template)
+                                            .font(.callout)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        Text(cmd.title)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider().opacity(0.25)
+                            }
+                        }
+                        .background(.thinMaterial)
+                    }
+
+                    ComposerBar(
+                        text: $vm.draft,
+                        isEnabled: vm.isConnected,
+                        onPlus: { showPlusMenu = true },
+                        onSend: { handleSend() }
+                    )
+                }
             }
         }
         .confirmationDialog("Adjuntar", isPresented: $showPlusMenu, titleVisibility: .visible) {
@@ -205,7 +259,24 @@ struct ContentView: View {
             Text("Chat")
                 .font(.headline)
 
+            if vm.isStreaming {
+                Text("escribiendo…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Spacer()
+
+            if vm.isStreaming {
+                Button {
+                    vm.abort()
+                } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                }
+                .buttonStyle(.plain)
+            }
 
             HStack(spacing: 8) {
                 Circle()
@@ -219,5 +290,100 @@ struct ContentView: View {
         .padding(.horizontal)
         .padding(.vertical, 10)
         .background(.thinMaterial)
+    }
+
+    // MARK: - Commands (/)
+
+    private struct CommandItem: Identifiable {
+        let id = UUID()
+        let template: String
+        let title: String
+    }
+
+    private var commandPalette: [CommandItem]? {
+        let t = vm.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("/") else { return nil }
+
+        let all: [CommandItem] = [
+            .init(template: "/help", title: "Ayuda"),
+            .init(template: "/agent opus", title: "Cambiar agente"),
+            .init(template: "/agent codex", title: "Cambiar agente"),
+            .init(template: "/agent main", title: "Cambiar agente"),
+            .init(template: "/clear", title: "Borrar historial"),
+            .init(template: "/reconnect", title: "Reconectar"),
+            .init(template: "/tts on", title: "TTS"),
+            .init(template: "/tts off", title: "TTS")
+        ]
+
+        if t == "/" { return Array(all.prefix(6)) }
+
+        let filtered = all.filter { $0.template.hasPrefix(t) }
+        return filtered.isEmpty ? nil : filtered
+    }
+
+    private func handleSend() {
+        let text = vm.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        if text.hasPrefix("/") {
+            runCommand(text)
+            vm.draft = ""
+            return
+        }
+
+        vm.sendText()
+    }
+
+    private func runCommand(_ raw: String) {
+        // Show command in chat for transparency.
+        vm.items.append(.init(sender: .user, text: raw))
+
+        let parts = raw.split(separator: " ").map(String.init)
+        let cmd = parts.first?.lowercased() ?? raw.lowercased()
+        let arg = parts.dropFirst().first?.lowercased()
+
+        switch cmd {
+        case "/help":
+            vm.items.append(.init(sender: .system, text: "Comandos:\n- /agent opus|codex|main\n- /clear\n- /reconnect\n- /tts on|off", style: .status))
+
+        case "/agent":
+            guard let arg else {
+                vm.items.append(.init(sender: .system, text: "Uso: /agent opus|codex|main", style: .error))
+                return
+            }
+            if let agent = AgentId(rawValue: arg) {
+                vm.selectedAgent = agent
+            } else {
+                vm.items.append(.init(sender: .system, text: "Agente inválido: \(arg)", style: .error))
+            }
+
+        case "/clear":
+            vm.clearThread()
+
+        case "/reconnect":
+            vm.disconnect(showStatus: false)
+            vm.connect()
+
+        case "/tts":
+            guard let arg else {
+                vm.items.append(.init(sender: .system, text: "Uso: /tts on|off", style: .error))
+                return
+            }
+            switch arg {
+            case "on", "1", "true":
+                settings.ttsEnabled = true
+                vm.setTTSEnabled(true)
+                vm.items.append(.init(sender: .system, text: "TTS activado", style: .status))
+            case "off", "0", "false":
+                settings.ttsEnabled = false
+                vm.setTTSEnabled(false)
+                vm.items.append(.init(sender: .system, text: "TTS desactivado", style: .status))
+            default:
+                vm.items.append(.init(sender: .system, text: "Uso: /tts on|off", style: .error))
+            }
+
+        default:
+            vm.items.append(.init(sender: .system, text: "Comando desconocido. Usa /help", style: .error))
+        }
     }
 }

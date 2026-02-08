@@ -2,6 +2,12 @@ import SwiftUI
 
 struct ChatBubbleView: View {
     let item: ChatItem
+    let isStreaming: Bool
+
+    init(item: ChatItem, isStreaming: Bool = false) {
+        self.item = item
+        self.isStreaming = isStreaming
+    }
 
     private var isUser: Bool { item.sender == .user }
 
@@ -10,13 +16,21 @@ struct ChatBubbleView: View {
             if isUser { Spacer(minLength: 40) }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
-                Text(item.text)
+                messageBody
                     .font(.body)
                     .foregroundStyle(foreground)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(bubble)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contextMenu {
+                        Button("Copiar") {
+                            UIPasteboard.general.string = item.text
+                        }
+                        ShareLink(item: item.text) {
+                            Text("Compartir")
+                        }
+                    }
 
                 if item.style != .normal {
                     Text(label)
@@ -31,6 +45,23 @@ struct ChatBubbleView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var messageBody: some View {
+        if isStreaming {
+            // Avoid expensive markdown parsing while deltas are coming in.
+            Text(item.text + "▍")
+        } else {
+            if let md = try? AttributedString(
+                markdown: item.text,
+                options: .init(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible)
+            ) {
+                Text(md)
+            } else {
+                Text(item.text)
+            }
+        }
     }
 
     private var bubble: some ShapeStyle {
