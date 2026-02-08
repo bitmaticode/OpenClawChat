@@ -2,7 +2,6 @@ import Foundation
 import AVFoundation
 import whisper
 
-@MainActor
 final class LocalSTTManager: ObservableObject {
     enum STTError: LocalizedError {
         case micPermissionDenied
@@ -27,12 +26,34 @@ final class LocalSTTManager: ObservableObject {
     @Published var isRecording = false
     @Published var isTranscribing = false
 
-    private var recorder: AVAudioRecorder?
-    private var recordingURL: URL?
-    private var whisperContext: OpaquePointer?
+    var onSentence: ((String) -> Void)?
+    var onFinal: ((String) -> Void)?
 
     private let modelFileName = "whisper-large-v3-turbo-q4_k.gguf"
     private let modelRemoteURL = URL(string: "https://huggingface.co/xkeyC/whisper-large-v3-turbo-gguf/resolve/main/model_q4_k.gguf")!
+
+    private let sampleRate: Double = 16_000
+    private let maxBufferSeconds: Double = 20
+    private let silenceThreshold: Float = 0.015
+    private let silenceTimeout: TimeInterval = 1.5
+    private let transcriptionInterval: TimeInterval = 0.6
+    private let minSamplesForTranscription = 1600
+
+    private var audioEngine: AVAudioEngine?
+    private var converter: AVAudioConverter?
+    private var whisperContext: OpaquePointer?
+
+    private let bufferQueue = DispatchQueue(label: "openclaw.stt.buffer")
+    private var sampleBuffer: [Float] = []
+    private var lastSpeechAt: Date?
+    private var hasSpeechSinceLastSend = false
+    private var pendingText: String = ""
+    private var committedText: String = ""
+    private var lastTranscript: String = ""
+    private var runningTranscription = false
+    private var recordingActive = false
+    private var modelReady = false
+    private var transcriptionTimer: DispatchSourceTimer?
 
     deinit {
         if let ctx = whisperContext {
@@ -40,58 +61,83 @@ final class LocalSTTManager: ObservableObject {
         }
     }
 
-    func startRecording() async throws {
+    func startStreaming() async throws {
         try await requestMicPermissionIfNeeded()
         try configureRecordingSession()
 
-        let url = try makeRecordingURL()
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: 16_000,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false
-        ]
+        let engine = AVAudioEngine()
+        let input = engine.inputNode
+        let inputFormat = input.outputFormat(forBus: 0)
+        let desiredFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false)!
+        let converter = AVAudioConverter(from: inputFormat, to: desiredFormat)
 
-        let recorder = try AVAudioRecorder(url: url, settings: settings)
-        recorder.isMeteringEnabled = false
-        recorder.prepareToRecord()
+        self.audioEngine = engine
+        self.converter = converter
 
-        guard recorder.record() else {
-            throw STTError.recordingFailed
+        resetState()
+        startTimerIfNeeded()
+
+        input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
+            guard let self else { return }
+            self.bufferQueue.async {
+                guard self.recordingActive else { return }
+                guard let converter = self.converter else { return }
+                guard let converted = self.convertBuffer(buffer, with: converter) else { return }
+                guard let channel = converted.floatChannelData?.pointee else { return }
+
+                let samples = Array(UnsafeBufferPointer(start: channel, count: Int(converted.frameLength)))
+                if samples.isEmpty { return }
+
+                self.appendSamples(samples)
+                let rms = self.rms(samples)
+                if rms > self.silenceThreshold {
+                    self.lastSpeechAt = Date()
+                    self.hasSpeechSinceLastSend = true
+                }
+            }
         }
 
-        self.recorder = recorder
-        self.recordingURL = url
+        try engine.start()
+
         isRecording = true
+        bufferQueue.async { [weak self] in
+            self?.recordingActive = true
+        }
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let modelURL = try await self.ensureModel()
+                try self.loadWhisperContextIfNeeded(modelURL: modelURL)
+                self.bufferQueue.async {
+                    self.modelReady = true
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.stopStreaming(sendPending: false)
+                }
+            }
+        }
     }
 
-    func stopAndTranscribe() async throws -> String {
-        guard isRecording else { throw STTError.noRecording }
+    func stopStreaming(sendPending: Bool = true) {
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine?.stop()
+        audioEngine = nil
+        converter = nil
 
-        recorder?.stop()
+        bufferQueue.async {
+            self.recordingActive = false
+            self.runningTranscription = false
+            if sendPending {
+                self.finalizeNow()
+            }
+            self.transcriptionTimer?.cancel()
+            self.transcriptionTimer = nil
+        }
+
         isRecording = false
-
-        let url = recordingURL
-        recorder = nil
-
-        try configurePlaybackSession()
-
-        guard let audioURL = url else { throw STTError.noRecording }
-
-        isTranscribing = true
-        defer { isTranscribing = false }
-
-        let modelURL = try await ensureModel()
-        try loadWhisperContextIfNeeded(modelURL: modelURL)
-
-        let samples = try loadPCMFloatSamples(from: audioURL)
-
-        return try await Task.detached(priority: .userInitiated) { [samples, whisperContext] in
-            guard let ctx = whisperContext else { throw STTError.modelLoadFailed }
-            return try Self.runWhisper(ctx: ctx, samples: samples)
-        }.value
+        isTranscribing = false
     }
 
     private func requestMicPermissionIfNeeded() async throws {
@@ -117,20 +163,171 @@ final class LocalSTTManager: ObservableObject {
 
     private func configureRecordingSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
         try session.setActive(true)
     }
 
-    private func configurePlaybackSession() throws {
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-        try session.setActive(true)
+    private func resetState() {
+        bufferQueue.async {
+            self.sampleBuffer.removeAll()
+            self.pendingText = ""
+            self.committedText = ""
+            self.lastTranscript = ""
+            self.lastSpeechAt = nil
+            self.hasSpeechSinceLastSend = false
+        }
     }
 
-    private func makeRecordingURL() throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("openclaw-recordings", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("stt-\(UUID().uuidString).caf")
+    private func startTimerIfNeeded() {
+        bufferQueue.async {
+            self.transcriptionTimer?.cancel()
+            let timer = DispatchSource.makeTimerSource(queue: self.bufferQueue)
+            timer.schedule(deadline: .now() + self.transcriptionInterval, repeating: self.transcriptionInterval)
+            timer.setEventHandler { [weak self] in
+                self?.transcriptionTick()
+            }
+            timer.resume()
+            self.transcriptionTimer = timer
+        }
+    }
+
+    private func transcriptionTick() {
+        guard recordingActive else { return }
+
+        checkAutoSendIfNeeded()
+        guard modelReady else { return }
+        guard !runningTranscription else { return }
+        guard sampleBuffer.count >= minSamplesForTranscription else { return }
+
+        let ctx = whisperContext
+        guard let ctx else { return }
+
+        runningTranscription = true
+        DispatchQueue.main.async {
+            self.isTranscribing = true
+        }
+        let windowSamples = snapshotSamples()
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let text = try? Self.runWhisper(ctx: ctx, samples: windowSamples)
+            self.bufferQueue.async {
+                self.runningTranscription = false
+                DispatchQueue.main.async {
+                    self.isTranscribing = false
+                }
+                if let text {
+                    self.bufferQueue.async {
+                        self.handleTranscript(text)
+                    }
+                }
+            }
+        }
+    }
+
+    private func snapshotSamples() -> [Float] {
+        let maxSamples = Int(sampleRate * maxBufferSeconds)
+        if sampleBuffer.count > maxSamples {
+            sampleBuffer.removeFirst(sampleBuffer.count - maxSamples)
+        }
+        if sampleBuffer.count <= maxSamples {
+            return sampleBuffer
+        }
+        return Array(sampleBuffer.suffix(maxSamples))
+    }
+
+    private func appendSamples(_ samples: [Float]) {
+        sampleBuffer.append(contentsOf: samples)
+        let maxSamples = Int(sampleRate * maxBufferSeconds)
+        if sampleBuffer.count > maxSamples {
+            sampleBuffer.removeFirst(sampleBuffer.count - maxSamples)
+        }
+    }
+
+    private func rms(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        let sum = samples.reduce(0) { $0 + $1 * $1 }
+        return sqrt(sum / Float(samples.count))
+    }
+
+    private func handleTranscript(_ text: String) {
+        guard !text.isEmpty else { return }
+        var delta = text
+        if !lastTranscript.isEmpty, text.hasPrefix(lastTranscript) {
+            delta = String(text.dropFirst(lastTranscript.count))
+        } else if !lastTranscript.isEmpty {
+            committedText = ""
+            pendingText = ""
+        }
+
+        lastTranscript = text
+        pendingText += delta
+
+        while let idx = boundaryIndex(in: pendingText) {
+            let sentence = String(pendingText[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines)
+            pendingText.removeSubrange(..<idx)
+            if !sentence.isEmpty {
+                committedText = (committedText + " " + sentence).trimmingCharacters(in: .whitespacesAndNewlines)
+                DispatchQueue.main.async {
+                    self.onSentence?(sentence)
+                }
+            }
+        }
+    }
+
+    private func boundaryIndex(in s: String) -> String.Index? {
+        let boundaries: [Character] = ["\n", ".", "?", "!"]
+        guard let last = s.lastIndex(where: { boundaries.contains($0) }) else { return nil }
+        return s.index(after: last)
+    }
+
+    private func checkAutoSendIfNeeded() {
+        guard hasSpeechSinceLastSend else { return }
+        guard let last = lastSpeechAt else { return }
+        if Date().timeIntervalSince(last) >= silenceTimeout {
+            finalizeNow()
+        }
+    }
+
+    private func finalizeNow() {
+        let final = (committedText + " " + pendingText)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !final.isEmpty else {
+            hasSpeechSinceLastSend = false
+            return
+        }
+
+        committedText = ""
+        pendingText = ""
+        lastTranscript = ""
+        lastSpeechAt = nil
+        hasSpeechSinceLastSend = false
+        sampleBuffer.removeAll()
+
+        DispatchQueue.main.async {
+            self.onFinal?(final)
+        }
+    }
+
+    private func convertBuffer(_ buffer: AVAudioPCMBuffer, with converter: AVAudioConverter) -> AVAudioPCMBuffer? {
+        let ratio = sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio + 1)
+        guard let outBuffer = AVAudioPCMBuffer(pcmFormat: converter.outputFormat, frameCapacity: capacity) else {
+            return nil
+        }
+
+        var error: NSError?
+        let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
+            outStatus.pointee = .haveData
+            return buffer
+        }
+
+        converter.convert(to: outBuffer, error: &error, withInputFrom: inputBlock)
+        if error != nil || outBuffer.frameLength == 0 {
+            return nil
+        }
+
+        return outBuffer
     }
 
     private func ensureModel() async throws -> URL {

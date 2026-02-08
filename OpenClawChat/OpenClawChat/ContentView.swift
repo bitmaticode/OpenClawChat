@@ -120,7 +120,7 @@ struct ContentView: View {
                         text: $vm.draft,
                         isEnabled: vm.isConnected,
                         isRecording: stt.isRecording,
-                        isMicEnabled: !stt.isTranscribing,
+                        isMicEnabled: stt.isRecording || (!stt.isTranscribing && vm.isConnected),
                         onPlus: { showPlusMenu = true },
                         onMic: { handleMicTap() },
                         onSend: { handleSend() }
@@ -209,6 +209,25 @@ struct ContentView: View {
         }
         .task {
             vm.setTTSEnabled(settings.ttsEnabled)
+
+            stt.onSentence = { sentence in
+                DispatchQueue.main.async {
+                    if self.vm.draft.isEmpty {
+                        self.vm.draft = sentence
+                    } else {
+                        self.vm.draft = (self.vm.draft + " " + sentence).trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                }
+            }
+
+            stt.onFinal = { finalText in
+                let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                DispatchQueue.main.async {
+                    self.vm.draft = trimmed
+                    self.handleSend()
+                }
+            }
 
             // Smoke-test helpers (only active when env vars are set)
             let env = ProcessInfo.processInfo.environment
@@ -359,16 +378,9 @@ struct ContentView: View {
         Task { @MainActor in
             do {
                 if stt.isRecording {
-                    let transcript = try await stt.stopAndTranscribe()
-                    if !transcript.isEmpty {
-                        if vm.draft.isEmpty {
-                            vm.draft = transcript
-                        } else {
-                            vm.draft = (vm.draft + " " + transcript).trimmingCharacters(in: .whitespacesAndNewlines)
-                        }
-                    }
+                    stt.stopStreaming(sendPending: true)
                 } else {
-                    try await stt.startRecording()
+                    try await stt.startStreaming()
                 }
             } catch {
                 vm.items.append(.init(sender: .system, text: "STT local: \(error.localizedDescription)", style: .error))
