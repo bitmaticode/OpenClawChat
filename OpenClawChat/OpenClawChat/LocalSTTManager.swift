@@ -40,16 +40,27 @@ final class LocalSTTManager: ObservableObject {
 
         if whisperKit == nil {
             isLoadingModel = true
-            statusMessage = "Descargando modelo…"
+            statusMessage = "Preparando modelo…"
 
             do {
+                let downloadBase = try prepareDownloadBase()
+                let repo = "argmaxinc/whisperkit-coreml"
+                let modelSupport = await WhisperKit.recommendedRemoteModels(from: repo, downloadBase: downloadBase)
+                let modelVariant = modelSupport.default
+
+                try prepareModelDirectories(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
+
+                statusMessage = "Descargando modelo…"
                 let config = WhisperKitConfig(
-                    model: nil,
+                    model: modelVariant,
+                    downloadBase: downloadBase,
+                    modelRepo: repo,
                     verbose: false,
                     logLevel: .none,
                     prewarm: true,
                     load: true,
-                    download: true
+                    download: true,
+                    useBackgroundDownloadSession: true
                 )
                 whisperKit = try await WhisperKit(config)
                 isLoadingModel = false
@@ -212,5 +223,31 @@ final class LocalSTTManager: ObservableObject {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try? session.setActive(true)
+    }
+
+    private func prepareDownloadBase() throws -> URL {
+        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let base = root.appendingPathComponent("huggingface", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }
+
+    private func prepareModelDirectories(downloadBase: URL, repo: String, modelName: String) throws {
+        let repoPath = downloadBase
+            .appendingPathComponent("models", isDirectory: true)
+            .appendingPathComponent(repo, isDirectory: true)
+        let modelPath = repoPath.appendingPathComponent(modelName, isDirectory: true)
+        try FileManager.default.createDirectory(at: modelPath, withIntermediateDirectories: true)
+
+        let modelDirs = [
+            "MelSpectrogram.mlmodelc",
+            "AudioEncoder.mlmodelc",
+            "TextDecoder.mlmodelc",
+            "TextDecoderContextPrefill.mlmodelc"
+        ]
+        for dir in modelDirs {
+            let path = modelPath.appendingPathComponent(dir, isDirectory: true)
+            try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+        }
     }
 }
