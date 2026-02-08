@@ -140,11 +140,12 @@ struct ContentView: View {
                 source: .camera,
                 onImage: { image in
                     showCamera = false
-                    if let data = image.jpegData(compressionQuality: 0.85) {
+                    do {
+                        let data = try ImageUploadEncoder.encodeJPEG(image)
                         vm.sendImage(jpegData: data, fileName: "camera.jpg", caption: vm.draft)
                         vm.draft = ""
-                    } else {
-                        vm.items.append(.init(sender: .system, text: "No pude codificar la imagen", style: .error))
+                    } catch {
+                        vm.items.append(.init(sender: .system, text: "No pude preparar la imagen: \(error.localizedDescription)", style: .error))
                     }
                 },
                 onCancel: {
@@ -157,11 +158,12 @@ struct ContentView: View {
                 source: .photoLibrary,
                 onImage: { image in
                     showPhotoLibrary = false
-                    if let data = image.jpegData(compressionQuality: 0.85) {
+                    do {
+                        let data = try ImageUploadEncoder.encodeJPEG(image)
                         vm.sendImage(jpegData: data, fileName: "photo.jpg", caption: vm.draft)
                         vm.draft = ""
-                    } else {
-                        vm.items.append(.init(sender: .system, text: "No pude codificar la imagen", style: .error))
+                    } catch {
+                        vm.items.append(.init(sender: .system, text: "No pude preparar la imagen: \(error.localizedDescription)", style: .error))
                     }
                 },
                 onCancel: {

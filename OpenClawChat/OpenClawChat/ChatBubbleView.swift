@@ -44,18 +44,42 @@ struct ChatBubbleView: View {
 
     @ViewBuilder
     private var messageBody: some View {
-        if isStreaming {
-            // Avoid expensive markdown parsing while deltas are coming in.
-            Text(item.text + "▍")
-        } else {
-            if let md = try? AttributedString(
-                markdown: item.text,
-                options: .init(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible)
-            ) {
-                Text(md)
-            } else {
-                Text(item.text)
+        if let attachment = item.attachment, attachment.kind == .image {
+            VStack(alignment: .leading, spacing: 8) {
+                if let uiImage = UIImage(contentsOfFile: attachment.path) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: 260, maxHeight: 260)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                } else {
+                    Text("(imagen)")
+                }
+
+                if !item.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    markdownText(item.text)
+                }
             }
+        } else {
+            if isStreaming {
+                // Avoid expensive markdown parsing while deltas are coming in.
+                Text(item.text + "▍")
+            } else {
+                markdownText(item.text)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func markdownText(_ raw: String) -> some View {
+        if let md = try? AttributedString(
+            markdown: raw,
+            options: .init(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible)
+        ) {
+            Text(md)
+        } else {
+            Text(raw)
         }
     }
 

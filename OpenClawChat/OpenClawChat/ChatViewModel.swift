@@ -258,10 +258,19 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    func sendImage(jpegData: Data, fileName: String = "camera.jpg", caption: String? = nil) {
+    func sendImage(jpegData: Data, fileName: String = "image.jpg", caption: String? = nil) {
         let captionText = (caption ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let label = captionText.isEmpty ? "Imagen" : "Imagen: \(captionText)"
-        items.append(.init(sender: .user, text: label))
+
+        // Persist locally so it can be previewed (and survive relaunch).
+        let attachment: ChatAttachmentLocal?
+        do {
+            attachment = try AttachmentStore.saveImageJPEG(data: jpegData, fileName: fileName)
+        } catch {
+            attachment = nil
+        }
+
+        // Keep the chat readable: show the image + optional caption, not a noisy label.
+        items.append(.init(sender: .user, text: captionText, attachment: attachment))
 
         Task {
             do {
