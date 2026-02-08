@@ -12,7 +12,9 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var sessionKey: String
 
     private let baseSessionKey: String
-    private let chatService: ChatService
+    private var chatService: ChatService
+    private let makeChatService: (URL, String) throws -> ChatService
+
     private var streamTask: Task<Void, Never>?
 
     private var cachedThreads: [String: [ChatItem]] = [:]
@@ -22,8 +24,12 @@ final class ChatViewModel: ObservableObject {
     private var streamingItemId: UUID?
     private var streamingLastSeq: Int?
 
-    init(chatService: ChatService, sessionKey: String) {
+    // TTS
+    private let speech = SpeechManager()
+
+    init(chatService: ChatService, sessionKey: String, makeChatService: @escaping (URL, String) throws -> ChatService) {
         self.chatService = chatService
+        self.makeChatService = makeChatService
         self.baseSessionKey = sessionKey.lowercased()
 
         let agent = SessionKeyTools.selection(from: sessionKey) ?? .opus
@@ -38,6 +44,26 @@ final class ChatViewModel: ObservableObject {
             .init(sender: .system, text: "Agente: \(agent.title)", style: .status),
             .init(sender: .system, text: "sessionKey=\(sessionKey)", style: .status)
         ]
+    }
+
+    func setTTSEnabled(_ enabled: Bool) {
+        speech.isEnabled = enabled
+    }
+
+    func reconfigureConnection(gatewayURL: URL, token: String) {
+        let wasConnected = isConnected
+        if wasConnected { disconnect(showStatus: false) }
+
+        do {
+            self.chatService = try makeChatService(gatewayURL, token)
+            items.append(.init(sender: .system, text: "Configuración actualizada", style: .status))
+        } catch {
+            items.append(.init(sender: .system, text: "Error creando cliente: \(error.localizedDescription)", style: .error))
+        }
+
+        if wasConnected {
+            connect()
+        }
     }
 
     func connect() {
@@ -61,6 +87,7 @@ final class ChatViewModel: ObservableObject {
     func disconnect(showStatus: Bool = true) {
         streamTask?.cancel()
         streamTask = nil
+        speech.stop()
         Task { await chatService.disconnect() }
         isConnected = false
         if showStatus {
@@ -78,6 +105,9 @@ final class ChatViewModel: ObservableObject {
         let wasConnected = isConnected
         if wasConnected {
             disconnect(showStatus: false)
+        } else {
+            // Even if disconnected, stop any ongoing TTS.
+            speech.stop()
         }
 
         sessionKey = newKey
@@ -139,7 +169,9 @@ final class ChatViewModel: ObservableObject {
                 if event.state == "delta" || event.state == "final" {
                     let newText = event.message?.content?.first(where: { $0.type == "text" })?.text ?? ""
                     if !newText.isEmpty {
-                        applyStreamingText(newText, runId: event.runId, seq: event.seq)
+                        applyStreamingText(newText, runId: event.runId, seq: event.seq, isFinal: event.state == "final")
+                    } else if event.state == "final" {
+                        speech.append(delta: "", isFinal: true)
                     }
 
                     if event.state == "final" {
@@ -151,13 +183,14 @@ final class ChatViewModel: ObservableObject {
                     streamingRunId = nil
                     streamingItemId = nil
                     streamingLastSeq = nil
+                    speech.stop()
                     items.append(.init(sender: .system, text: event.errorMessage ?? "Error desconocido", style: .error))
                 }
             }
         }
     }
 
-    private func applyStreamingText(_ newText: String, runId: String, seq: Int) {
+    private func applyStreamingText(_ newText: String, runId: String, seq: Int, isFinal: Bool) {
         // If this is a new run, start a new assistant bubble.
         if streamingRunId != runId || streamingItemId == nil {
             let item = ChatItem(sender: .assistant, text: newText)
@@ -165,6 +198,9 @@ final class ChatViewModel: ObservableObject {
             streamingItemId = item.id
             streamingLastSeq = seq
             items.append(item)
+
+            // For TTS, treat first chunk as delta.
+            speech.append(delta: newText, isFinal: isFinal)
             return
         }
 
@@ -185,25 +221,33 @@ final class ChatViewModel: ObservableObject {
         }
 
         let current = items[idx].text
-        items[idx].text = mergeStreamingText(current: current, incoming: newText)
+        let merged = mergeStreamingText(current: current, incoming: newText)
+        items[idx].text = merged.merged
+
+        if !merged.appended.isEmpty || isFinal {
+            speech.append(delta: merged.appended, isFinal: isFinal)
+        }
     }
 
     /// Some gateways send true deltas (append-only), others send the full text-so-far.
     /// This tries to do the right thing without duplicating content.
-    private func mergeStreamingText(current: String, incoming: String) -> String {
-        if current.isEmpty { return incoming }
+    private func mergeStreamingText(current: String, incoming: String) -> (merged: String, appended: String) {
+        if current.isEmpty { return (incoming, incoming) }
 
         // Cumulative update: incoming contains current as prefix.
-        if incoming.hasPrefix(current) { return incoming }
+        if incoming.hasPrefix(current) {
+            let delta = String(incoming.dropFirst(current.count))
+            return (incoming, delta)
+        }
 
         // If current already ends with incoming (duplicate), keep current.
-        if current.hasSuffix(incoming) { return current }
+        if current.hasSuffix(incoming) { return (current, "") }
 
         // If incoming is a strict prefix of current (rare), keep the longer one.
-        if current.hasPrefix(incoming) { return current }
+        if current.hasPrefix(incoming) { return (current, "") }
 
         // Otherwise treat as delta.
-        return current + incoming
+        return (current + incoming, incoming)
     }
 
     func sendPDF(fileURL: URL, prompt: String? = nil) {

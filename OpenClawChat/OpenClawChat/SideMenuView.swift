@@ -75,11 +75,33 @@ struct SideMenuView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
+                            TextField("URL del gateway (wss://...)", text: $settings.gatewayURLString)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .keyboardType(.URL)
+                                .textContentType(.URL)
+
                             SecureField("Token del gateway", text: $settings.gatewayToken)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled(true)
 
-                            Text("Se guarda en el llavero (Keychain). Si defines OPENCLAW_GATEWAY_TOKEN como env var, esa tendrá prioridad.")
+                            Toggle("Autonectar", isOn: $settings.shouldAutoConnect)
+
+                            Text("La URL se guarda en AppStorage. El token se guarda en el llavero (Keychain). Si defines OPENCLAW_GATEWAY_TOKEN como env var, esa tendrá prioridad.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Voz")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            Toggle("Leer respuestas en voz alta (TTS)", isOn: $settings.ttsEnabled)
+
+                            Text("Lee la respuesta del agente conforme va llegando (por frases).")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

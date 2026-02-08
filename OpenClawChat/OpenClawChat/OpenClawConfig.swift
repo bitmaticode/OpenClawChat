@@ -1,16 +1,6 @@
 import Foundation
 
 enum OpenClawConfig {
-    /// Default: Tailscale Serve URL (recommended for Simulator + iPhone).
-    /// Override at runtime with env var: OPENCLAW_GATEWAY_URL
-    static var gatewayURL: URL {
-        if let s = ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_URL"],
-           let url = URL(string: s) {
-            return url
-        }
-        return URL(string: "wss://mac-mini-de-carlos.tail23b32.ts.net")!
-    }
-
     /// OpenResponses HTTP endpoint base.
     /// Override at runtime with env var: OPENCLAW_RESPONSES_URL
     static var responsesURL: URL {

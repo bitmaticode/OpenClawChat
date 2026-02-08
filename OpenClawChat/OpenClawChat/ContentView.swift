@@ -5,6 +5,8 @@ struct ContentView: View {
     @StateObject var vm: ChatViewModel
     @ObservedObject var settings: AppSettings
 
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var showDrawer = false
 
     @State private var showCamera = false
@@ -130,7 +132,23 @@ struct ContentView: View {
         .onChange(of: vm.selectedAgent) { _, newAgent in
             vm.applySelectedAgent(newAgent)
         }
+        .onChange(of: settings.ttsEnabled) { _, enabled in
+            vm.setTTSEnabled(enabled)
+        }
+        .onChange(of: settings.gatewayToken) { _, _ in
+            vm.reconfigureConnection(gatewayURL: settings.gatewayURL, token: settings.gatewayToken)
+        }
+        .onChange(of: settings.gatewayURLString) { _, _ in
+            vm.reconfigureConnection(gatewayURL: settings.gatewayURL, token: settings.gatewayToken)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, settings.shouldAutoConnect, !vm.isConnected {
+                vm.connect()
+            }
+        }
         .task {
+            vm.setTTSEnabled(settings.ttsEnabled)
+
             // Smoke-test helpers (only active when env vars are set)
             let env = ProcessInfo.processInfo.environment
 
@@ -141,8 +159,14 @@ struct ContentView: View {
                 }
             }
 
-            if env["OPENCLAW_AUTOCONNECT"] == "1" {
+            // Real autoconnect (preferred).
+            if settings.shouldAutoConnect {
                 vm.connect()
+            }
+
+            // Legacy smoke-test path.
+            if env["OPENCLAW_AUTOCONNECT"] == "1" {
+                if !vm.isConnected { vm.connect() }
 
                 if let autoMsg = env["OPENCLAW_AUTO_MESSAGE"], !autoMsg.isEmpty {
                     try? await Task.sleep(nanoseconds: 1_200_000_000)

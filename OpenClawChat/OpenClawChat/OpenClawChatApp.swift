@@ -6,9 +6,19 @@ struct OpenClawChatApp: App {
 
     var body: some Scene {
         WindowGroup {
-            let service = try! OpenClawBootstrap.makeChatService()
+            let service = try! OpenClawBootstrap.makeChatService(
+                gatewayURL: settings.gatewayURL,
+                token: settings.gatewayToken
+            )
+
             ContentView(
-                vm: .init(chatService: service, sessionKey: OpenClawConfig.sessionKey),
+                vm: .init(
+                    chatService: service,
+                    sessionKey: OpenClawConfig.sessionKey,
+                    makeChatService: { url, token in
+                        try OpenClawBootstrap.makeChatService(gatewayURL: url, token: token)
+                    }
+                ),
                 settings: settings
             )
             .preferredColorScheme(settings.themeMode.colorScheme)
