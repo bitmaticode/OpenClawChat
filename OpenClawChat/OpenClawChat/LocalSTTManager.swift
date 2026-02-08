@@ -434,8 +434,8 @@ final class LocalSTTManager: ObservableObject {
         do {
             let downloadBase = try prepareDownloadBase()
             let repo = "argmaxinc/whisperkit-coreml"
-            let recommended = await WhisperKit.recommendedRemoteModels(from: repo, downloadBase: downloadBase)
-            let modelVariant = recommended.default
+            // large-v3 turbo: best quality + fast inference on A19 Neural Engine
+            let modelVariant = "openai_whisper-large-v3-v20240930_turbo"
 
             try prepareModelDirectories(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
             cleanEmptyModelDirs(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
