@@ -210,13 +210,9 @@ struct ContentView: View {
         .task {
             vm.setTTSEnabled(settings.ttsEnabled)
 
-            stt.onSentence = { sentence in
+            stt.onPartial = { partialText in
                 DispatchQueue.main.async {
-                    if self.vm.draft.isEmpty {
-                        self.vm.draft = sentence
-                    } else {
-                        self.vm.draft = (self.vm.draft + " " + sentence).trimmingCharacters(in: .whitespacesAndNewlines)
-                    }
+                    self.vm.draft = partialText
                 }
             }
 
