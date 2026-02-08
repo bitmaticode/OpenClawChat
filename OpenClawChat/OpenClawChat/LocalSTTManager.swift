@@ -438,6 +438,7 @@ final class LocalSTTManager: ObservableObject {
             let modelVariant = recommended.default
 
             try prepareModelDirectories(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
+            cleanEmptyModelDirs(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
 
             statusMessage = "Descargando modelo (\(modelVariant))…"
             logger.info("Loading WhisperKit model: \(modelVariant)")
@@ -530,13 +531,28 @@ final class LocalSTTManager: ObservableObject {
             .appendingPathComponent(repo, isDirectory: true)
         let modelPath = repoPath.appendingPathComponent(modelName, isDirectory: true)
         try FileManager.default.createDirectory(at: modelPath, withIntermediateDirectories: true)
+        // NOTE: Don't pre-create .mlmodelc subdirectories — HubApi's Downloader
+        // creates them automatically via moveDownloadedFile(). Pre-creating empty
+        // dirs causes WhisperKit to detect them as "existing" optional models
+        // (e.g. TextDecoderContextPrefill) and fail to load the empty bundle.
+    }
 
-        for dir in ["MelSpectrogram.mlmodelc", "AudioEncoder.mlmodelc",
-                     "TextDecoder.mlmodelc", "TextDecoderContextPrefill.mlmodelc"] {
-            try FileManager.default.createDirectory(
-                at: modelPath.appendingPathComponent(dir, isDirectory: true),
-                withIntermediateDirectories: true
-            )
+    /// Remove stale empty .mlmodelc directories that could confuse WhisperKit.
+    private func cleanEmptyModelDirs(downloadBase: URL, repo: String, modelName: String) {
+        let modelPath = downloadBase
+            .appendingPathComponent("models", isDirectory: true)
+            .appendingPathComponent(repo, isDirectory: true)
+            .appendingPathComponent(modelName, isDirectory: true)
+        let fm = FileManager.default
+        guard let contents = try? fm.contentsOfDirectory(atPath: modelPath.path) else { return }
+        for item in contents where item.hasSuffix(".mlmodelc") {
+            let dir = modelPath.appendingPathComponent(item)
+            // If the .mlmodelc dir is empty or has no actual model files, remove it
+            let subItems = (try? fm.contentsOfDirectory(atPath: dir.path)) ?? []
+            if subItems.isEmpty {
+                try? fm.removeItem(at: dir)
+                logger.info("Removed empty model dir: \(item)")
+            }
         }
     }
 }
