@@ -8,3 +8,4 @@
 5) Autonectar al iniciar la App y al cambiar de agente.
 6) Persistencia de mensajes.
 7) Añadir opciones con “/“ estilo bot de Telegram.
+8) Revisar el TTS de la app.
