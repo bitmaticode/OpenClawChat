@@ -19,6 +19,10 @@ final class ChatViewModel: ObservableObject {
     private var chatService: ChatService
     private let makeChatService: (URL, String) throws -> ChatService
 
+    // Keep the effective configuration the user set in-app (don’t depend on Keychain reads).
+    private var configuredGatewayURL: URL
+    private var configuredToken: String
+
     private var streamTask: Task<Void, Never>?
 
     private var cachedThreads: [String: [ChatItem]] = [:]
@@ -39,9 +43,17 @@ final class ChatViewModel: ObservableObject {
     // TTS
     private let speech = SpeechManager()
 
-    init(chatService: ChatService, sessionKey: String, makeChatService: @escaping (URL, String) throws -> ChatService) {
+    init(
+        chatService: ChatService,
+        sessionKey: String,
+        initialGatewayURL: URL,
+        initialToken: String,
+        makeChatService: @escaping (URL, String) throws -> ChatService
+    ) {
         self.chatService = chatService
         self.makeChatService = makeChatService
+        self.configuredGatewayURL = initialGatewayURL
+        self.configuredToken = initialToken
         self.baseSessionKey = sessionKey.lowercased()
 
         let agent = SessionKeyTools.selection(from: sessionKey) ?? .opus
@@ -80,6 +92,9 @@ final class ChatViewModel: ObservableObject {
         let wasConnected = isConnected
         if wasConnected { disconnect(showStatus: false) }
 
+        configuredGatewayURL = gatewayURL
+        configuredToken = token
+
         do {
             self.chatService = try makeChatService(gatewayURL, token)
             items.append(.init(sender: .system, text: "Configuración actualizada", style: .status))
@@ -117,8 +132,12 @@ final class ChatViewModel: ObservableObject {
     }
 
     func connect() {
-        guard !OpenClawConfig.gatewayToken.isEmpty else {
-            items.append(.init(sender: .system, text: "Falta el token del gateway. Ponlo en Menú → Gateway o como OPENCLAW_GATEWAY_TOKEN (env var).", style: .error))
+        let token = configuredToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else {
+            let msg = "Falta el token del gateway. Ponlo en Menú → Gateway o como OPENCLAW_GATEWAY_TOKEN (env var)."
+            if items.last?.text != msg {
+                items.append(.init(sender: .system, text: msg, style: .error))
+            }
             return
         }
 

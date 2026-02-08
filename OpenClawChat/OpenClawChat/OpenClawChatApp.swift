@@ -15,6 +15,8 @@ struct OpenClawChatApp: App {
                 vm: .init(
                     chatService: service,
                     sessionKey: OpenClawConfig.sessionKey,
+                    initialGatewayURL: settings.gatewayURL,
+                    initialToken: settings.gatewayToken,
                     makeChatService: { url, token in
                         try OpenClawBootstrap.makeChatService(gatewayURL: url, token: token)
                     }
