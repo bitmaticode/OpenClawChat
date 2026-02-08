@@ -20,12 +20,19 @@ struct ModelDownloadOverlay: View {
 
             VStack(spacing: 20) {
                 // Icon
-                Image(systemName: isDownloading ? "arrow.down.circle" : "cpu")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.pulse, options: .repeating)
+                if isDownloading {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.white)
+                        .symbolEffect(.pulse, options: .repeating)
+                } else {
+                    // Loading/compiling spinner
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.white)
+                }
 
-                Text(isDownloading ? "Descargando modelo STT" : "Cargando modelo…")
+                Text(isDownloading ? "Descargando modelo STT" : "Preparando modelo STT")
                     .font(.headline)
                     .foregroundStyle(.white)
 
@@ -46,14 +53,14 @@ struct ModelDownloadOverlay: View {
                         .foregroundStyle(.white.opacity(0.7))
                 }
 
-                if !statusMessage.isEmpty && !isDownloading {
+                if !statusMessage.isEmpty {
                     Text(statusMessage)
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                 }
 
-                Text("Solo se descarga una vez")
+                Text("Solo la primera vez")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.5))
             }

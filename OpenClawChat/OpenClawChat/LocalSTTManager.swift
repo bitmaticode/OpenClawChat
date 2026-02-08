@@ -464,10 +464,11 @@ final class LocalSTTManager: ObservableObject {
 
             isDownloadingModel = false
             downloadProgress = 1.0
-            statusMessage = "Cargando modelo…"
+            statusMessage = "Compilando para Neural Engine…\n(primera vez tarda ~2 min)"
             logger.info("Model downloaded to: \(modelFolder.path)")
 
             // Step 2: Init WhisperKit with the downloaded folder (no download needed)
+            // prewarm: false → skip double compilation, model warms on first transcription
             let config = WhisperKitConfig(
                 modelFolder: modelFolder.path,
                 computeOptions: .init(
@@ -475,9 +476,9 @@ final class LocalSTTManager: ObservableObject {
                     audioEncoderCompute: .cpuAndNeuralEngine,
                     textDecoderCompute: .cpuAndNeuralEngine
                 ),
-                verbose: false,
-                logLevel: .error,
-                prewarm: true,
+                verbose: true,
+                logLevel: .debug,
+                prewarm: false,
                 load: true,
                 download: false
             )
