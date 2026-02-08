@@ -128,6 +128,15 @@ struct ContentView: View {
                 }
             }
         }
+        .overlay {
+            if stt.isLoadingModel {
+                ModelDownloadOverlay(
+                    isDownloading: stt.isDownloadingModel,
+                    progress: stt.downloadProgress,
+                    statusMessage: stt.statusMessage
+                )
+            }
+        }
         .confirmationDialog("Adjuntar", isPresented: $showPlusMenu, titleVisibility: .visible) {
             Button("PDF") { showPDFPicker = true }
             Button("Cámara") {
@@ -292,11 +301,7 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if stt.isLoadingModel {
-                    Text(stt.statusMessage.isEmpty ? "cargando modelo…" : stt.statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                } else if stt.isRecording {
+                if stt.isRecording {
                     Text("grabando…")
                         .font(.caption)
                         .foregroundStyle(.red)

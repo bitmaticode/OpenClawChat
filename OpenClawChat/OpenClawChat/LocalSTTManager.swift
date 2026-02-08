@@ -235,6 +235,8 @@ final class LocalSTTManager: ObservableObject {
     @Published var isRecording = false
     @Published var isTranscribing = false
     @Published var isLoadingModel = false
+    @Published var isDownloadingModel = false
+    @Published var downloadProgress: Double = 0   // 0.0–1.0
     @Published var statusMessage = ""
     @Published var audioLevel: Float = 0
 
@@ -424,29 +426,50 @@ final class LocalSTTManager: ObservableObject {
 
     // MARK: - Model Lifecycle
 
+    private let modelVariant = "openai_whisper-large-v3-v20240930_turbo"
+    private let modelRepo = "argmaxinc/whisperkit-coreml"
+
     private func ensureModelLoaded() async throws {
         #if canImport(WhisperKit)
         guard whisperKit == nil else { return }
 
         isLoadingModel = true
-        statusMessage = "Preparando modelo…"
+        statusMessage = "Preparando…"
 
         do {
             let downloadBase = try prepareDownloadBase()
-            let repo = "argmaxinc/whisperkit-coreml"
-            // large-v3 turbo: best quality + fast inference on A19 Neural Engine
-            let modelVariant = "openai_whisper-large-v3-v20240930_turbo"
 
-            try prepareModelDirectories(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
-            cleanEmptyModelDirs(downloadBase: downloadBase, repo: repo, modelName: modelVariant)
+            try prepareModelDirectories(downloadBase: downloadBase, repo: modelRepo, modelName: modelVariant)
+            cleanEmptyModelDirs(downloadBase: downloadBase, repo: modelRepo, modelName: modelVariant)
 
-            statusMessage = "Descargando modelo (\(modelVariant))…"
-            logger.info("Loading WhisperKit model: \(modelVariant)")
+            // Step 1: Download model with progress tracking
+            logger.info("Downloading WhisperKit model: \(self.modelVariant)")
+            isDownloadingModel = true
+            downloadProgress = 0
 
-            let config = WhisperKitConfig(
-                model: modelVariant,
+            let modelFolder = try await WhisperKit.download(
+                variant: modelVariant,
                 downloadBase: downloadBase,
-                modelRepo: repo,
+                useBackgroundSession: false,
+                from: modelRepo
+            ) { [weak self] progress in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    let fraction = progress.fractionCompleted
+                    self.downloadProgress = fraction
+                    let pct = Int(fraction * 100)
+                    self.statusMessage = "Descargando modelo… \(pct)%"
+                }
+            }
+
+            isDownloadingModel = false
+            downloadProgress = 1.0
+            statusMessage = "Cargando modelo…"
+            logger.info("Model downloaded to: \(modelFolder.path)")
+
+            // Step 2: Init WhisperKit with the downloaded folder (no download needed)
+            let config = WhisperKitConfig(
+                modelFolder: modelFolder.path,
                 computeOptions: .init(
                     melCompute: .cpuAndNeuralEngine,
                     audioEncoderCompute: .cpuAndNeuralEngine,
@@ -456,17 +479,19 @@ final class LocalSTTManager: ObservableObject {
                 logLevel: .error,
                 prewarm: true,
                 load: true,
-                download: true,
-                useBackgroundDownloadSession: true
+                download: false
             )
 
             whisperKit = try await WhisperKit(config)
             isLoadingModel = false
+            isDownloadingModel = false
             statusMessage = ""
             logger.info("WhisperKit model loaded successfully")
 
         } catch {
             isLoadingModel = false
+            isDownloadingModel = false
+            downloadProgress = 0
             statusMessage = "Error: \(error.localizedDescription)"
             logger.error("Model load failed: \(error.localizedDescription)")
             throw STTError.modelLoadFailed(error.localizedDescription)
