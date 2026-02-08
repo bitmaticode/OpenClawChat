@@ -141,8 +141,44 @@ final class ChatViewModel: ObservableObject {
         isConnecting = true
 
         connectTask?.cancel()
-        connectTask = Task {
+        connectTask = Task { @MainActor in
             defer { self.isConnecting = false }
+            do {
+                _ = try await chatService.connect()
+                isConnected = true
+                listen()
+            } catch {
+                items.append(.init(sender: .system, text: "Error conectando: \(error.localizedDescription)", style: .error))
+            }
+        }
+    }
+
+    /// Disconnect + connect sequentially (prevents races that can kill the event stream).
+    func reconnect() {
+        let token = configuredToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else {
+            let msg = "Falta el token del gateway. Ponlo en Menú → Gateway o como OPENCLAW_GATEWAY_TOKEN (env var)."
+            if items.last?.text != msg {
+                items.append(.init(sender: .system, text: msg, style: .error))
+            }
+            return
+        }
+
+        guard !isConnecting else { return }
+        isConnecting = true
+
+        connectTask?.cancel()
+        connectTask = Task { @MainActor in
+            defer { self.isConnecting = false }
+
+            // Tear down current stream/tts first.
+            streamTask?.cancel()
+            streamTask = nil
+            speech.stop()
+
+            await chatService.disconnect()
+            isConnected = false
+
             do {
                 _ = try await chatService.connect()
                 isConnected = true
@@ -161,13 +197,17 @@ final class ChatViewModel: ObservableObject {
         streamTask?.cancel()
         streamTask = nil
         speech.stop()
-        Task { await chatService.disconnect() }
-        isConnected = false
+
+        Task { @MainActor in
+            await chatService.disconnect()
+            isConnected = false
+        }
+
         // Intentionally don't add a status bubble; connection state is shown in the top bar.
         _ = showStatus
     }
 
-    func applySelectedAgent(_ agent: AgentId) {
+    func applySelectedAgent(_ agent: AgentId, shouldAutoConnect: Bool = false) {
         let newKey = SessionKeyTools.sessionKey(for: agent, baseSessionKey: baseSessionKey)
         guard newKey != sessionKey else { return }
 
@@ -176,16 +216,12 @@ final class ChatViewModel: ObservableObject {
         cachedThreads[sessionKey] = items
 
         let wasConnected = isConnected
-        if wasConnected {
-            disconnect(showStatus: false)
-        } else {
-            // Even if disconnected, stop any ongoing TTS.
-            speech.stop()
-        }
 
+        // Stop any ongoing streaming/TTS.
         isStreaming = false
         streamingActiveRunId = nil
         streamingBubbleId = nil
+        speech.stop()
 
         sessionKey = newKey
 
@@ -198,7 +234,11 @@ final class ChatViewModel: ObservableObject {
             items = Self.bootstrapItems(sessionKey: newKey, agent: agent)
         }
 
+        // Requirement: auto-connect when switching agents.
+        // If we were already connected, keep it connected by reconnecting (sequentially).
         if wasConnected {
+            reconnect()
+        } else if shouldAutoConnect {
             connect()
         }
     }

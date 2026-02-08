@@ -184,7 +184,7 @@ struct ContentView: View {
             )
         }
         .onChange(of: vm.selectedAgent) { _, newAgent in
-            vm.applySelectedAgent(newAgent)
+            vm.applySelectedAgent(newAgent, shouldAutoConnect: settings.shouldAutoConnect)
         }
         .onChange(of: settings.ttsEnabled) { _, enabled in
             vm.setTTSEnabled(enabled)
@@ -365,8 +365,7 @@ struct ContentView: View {
             vm.clearThread()
 
         case "/reconnect":
-            vm.disconnect(showStatus: false)
-            vm.connect()
+            vm.reconnect()
 
         case "/tts":
             guard let arg else {
