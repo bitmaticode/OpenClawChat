@@ -11,11 +11,13 @@
 		06FB2949DA8948C91C11EAD7 /* ChatBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984A262B8835284D86758F6A /* ChatBubbleView.swift */; };
 		1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */; };
 		32FE739202D58A6F9B8A4009 /* DocumentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB34DD9125A3677D3439182B /* DocumentPicker.swift */; };
+		3F56A5AC08BC74B710E6D26F /* LocalSTTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC85867C99585D373F6CB7F4 /* LocalSTTManager.swift */; };
 		4DB5EDD9D19B01DCAA3FD774 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4360AD8082DAF3ECE68AC1E /* Assets.xcassets */; };
 		56E01EF439319A99230AAD64 /* ImageUploadEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF3FBC9DC7E22D4896D54C21 /* ImageUploadEncoder.swift */; };
 		5F379B1D58D0F6AF7F981B7B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D0992582CF3041A64EAD0 /* AppSettings.swift */; };
 		622E214FD7CC832E7876129E /* AgentSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82066A14BBDDD0271499FBC5 /* AgentSelection.swift */; };
 		6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */; };
+		6A384C52916D29E4595B8EB6 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 087DEC4A6A9A8C2A3B48D9DC /* whisper */; };
 		81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */; };
 		98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90674D038BC6B82650DF590 /* SideMenuView.swift */; };
 		9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */; };
@@ -57,6 +59,7 @@
 		CB34DD9125A3677D3439182B /* DocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPicker.swift; sourceTree = "<group>"; };
 		D752469894570E9E323ED21E /* OpenClawChat.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenClawChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D7858EA488C7586A00B76AEC /* DrawerContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawerContainer.swift; sourceTree = "<group>"; };
+		EC85867C99585D373F6CB7F4 /* LocalSTTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSTTManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +68,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				003E5565AB736279ACC8101B /* OpenClawWS in Frameworks */,
+				6A384C52916D29E4595B8EB6 /* whisper in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,6 +94,7 @@
 				C8D6F6C3620B67390B2F7266 /* GatewayTokenStore.swift */,
 				BF3FBC9DC7E22D4896D54C21 /* ImageUploadEncoder.swift */,
 				84DE99D9D7F3586A00B65D4D /* LaunchScreen.storyboard */,
+				EC85867C99585D373F6CB7F4 /* LocalSTTManager.swift */,
 				7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */,
 				5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */,
 				81C28ADACCA32E72D0BBB3EF /* OpenClawConfig.swift */,
@@ -143,6 +148,7 @@
 			name = OpenClawChat;
 			packageProductDependencies = (
 				3559DE98399EB16752649DD1 /* OpenClawWS */,
+				087DEC4A6A9A8C2A3B48D9DC /* whisper */,
 			);
 			productName = OpenClawChat;
 			productReference = D752469894570E9E323ED21E /* OpenClawChat.app */;
@@ -174,6 +180,7 @@
 			mainGroup = C6F322459D2EDE45AB6186D0;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				B0BF5FFC3E2D54C197CAEC1F /* XCRemoteSwiftPackageReference "whisper.spm" */,
 				2A843D24483634ECF4FE177B /* XCLocalSwiftPackageReference "../ios-openclaw-ws-mvp" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -216,6 +223,7 @@
 				E85E19E00706C214B7D7777A /* DrawerContainer.swift in Sources */,
 				A835BF6592950C45AEE1FBE8 /* GatewayTokenStore.swift in Sources */,
 				56E01EF439319A99230AAD64 /* ImageUploadEncoder.swift in Sources */,
+				3F56A5AC08BC74B710E6D26F /* LocalSTTManager.swift in Sources */,
 				6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */,
 				81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */,
 				1861E8EAD4C04DA641E298A9 /* OpenClawConfig.swift in Sources */,
@@ -238,6 +246,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Necesitamos la cámara para enviar imágenes al chat.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Necesitamos el micrófono para transcribir voz a texto de forma local.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Necesitamos acceso a Fotos para seleccionar imágenes y enviarlas al chat.";
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -261,6 +270,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Necesitamos la cámara para enviar imágenes al chat.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Necesitamos el micrófono para transcribir voz a texto de forma local.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Necesitamos acceso a Fotos para seleccionar imágenes y enviarlas al chat.";
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -423,7 +433,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		B0BF5FFC3E2D54C197CAEC1F /* XCRemoteSwiftPackageReference "whisper.spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ggerganov/whisper.spm";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		087DEC4A6A9A8C2A3B48D9DC /* whisper */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B0BF5FFC3E2D54C197CAEC1F /* XCRemoteSwiftPackageReference "whisper.spm" */;
+			productName = whisper;
+		};
 		3559DE98399EB16752649DD1 /* OpenClawWS */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = OpenClawWS;

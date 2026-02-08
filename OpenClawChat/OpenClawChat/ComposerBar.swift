@@ -3,8 +3,11 @@ import SwiftUI
 struct ComposerBar: View {
     @Binding var text: String
     let isEnabled: Bool
+    let isRecording: Bool
+    let isMicEnabled: Bool
 
     let onPlus: () -> Void
+    let onMic: () -> Void
     let onSend: () -> Void
 
     @FocusState private var focused: Bool
@@ -21,6 +24,17 @@ struct ComposerBar: View {
             }
             .buttonStyle(.plain)
             .disabled(!isEnabled)
+
+            Button {
+                onMic()
+            } label: {
+                Image(systemName: isRecording ? "mic.fill" : "mic")
+                    .font(.system(size: 20, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(isRecording ? Color.red : (isEnabled ? .primary : .secondary))
+            }
+            .buttonStyle(.plain)
+            .disabled(!isMicEnabled)
 
             TextField("Escribe…", text: $text, axis: .vertical)
                 .lineLimit(1...4)

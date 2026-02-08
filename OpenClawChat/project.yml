@@ -7,6 +7,9 @@ settings:
 packages:
   OpenClawWS:
     path: ../ios-openclaw-ws-mvp
+  whisper:
+    url: https://github.com/ggerganov/whisper.spm
+    branch: master
 
 targets:
   OpenClawChat:
@@ -18,6 +21,7 @@ targets:
       - path: OpenClawChat/Assets.xcassets
     dependencies:
       - package: OpenClawWS
+      - package: whisper
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.openclaw.OpenClawChat
@@ -26,6 +30,7 @@ targets:
         INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         INFOPLIST_KEY_NSCameraUsageDescription: "Necesitamos la cámara para enviar imágenes al chat."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Necesitamos acceso a Fotos para seleccionar imágenes y enviarlas al chat."
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Necesitamos el micrófono para transcribir voz a texto de forma local."
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         CODE_SIGN_STYLE: Automatic

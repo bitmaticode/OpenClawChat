@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var showPDFPicker = false
     @State private var showPlusMenu = false
 
+    @StateObject private var stt = LocalSTTManager()
+
     // UX: only autoscroll if the user hasn't dragged up.
     @State private var autoScrollEnabled = true
 
@@ -117,7 +119,10 @@ struct ContentView: View {
                     ComposerBar(
                         text: $vm.draft,
                         isEnabled: vm.isConnected,
+                        isRecording: stt.isRecording,
+                        isMicEnabled: !stt.isTranscribing,
                         onPlus: { showPlusMenu = true },
+                        onMic: { handleMicTap() },
                         onSend: { handleSend() }
                     )
                 }
@@ -272,6 +277,16 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                if stt.isRecording {
+                    Text("grabando…")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                } else if stt.isTranscribing {
+                    Text("transcribiendo…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if vm.isStreaming {
                     Button {
                         vm.abort()
@@ -338,6 +353,27 @@ struct ContentView: View {
         }
 
         vm.sendText()
+    }
+
+    private func handleMicTap() {
+        Task { @MainActor in
+            do {
+                if stt.isRecording {
+                    let transcript = try await stt.stopAndTranscribe()
+                    if !transcript.isEmpty {
+                        if vm.draft.isEmpty {
+                            vm.draft = transcript
+                        } else {
+                            vm.draft = (vm.draft + " " + transcript).trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+                    }
+                } else {
+                    try await stt.startRecording()
+                }
+            } catch {
+                vm.items.append(.init(sender: .system, text: "STT local: \(error.localizedDescription)", style: .error))
+            }
+        }
     }
 
     private func runCommand(_ raw: String) {
