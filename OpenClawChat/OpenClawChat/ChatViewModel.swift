@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 import OpenClawWS
 
 @MainActor
@@ -19,6 +20,13 @@ final class ChatViewModel: ObservableObject {
 
     private var cachedThreads: [String: [ChatItem]] = [:]
 
+    // Connection gating (avoid repeated connects on launch/active).
+    private var isConnecting: Bool = false
+    private var connectTask: Task<Void, Never>?
+
+    // Persistence
+    private var cancellables = Set<AnyCancellable>()
+
     // Streaming aggregation (so deltas update a single bubble instead of creating many).
     private var streamingRunId: String?
     private var streamingItemId: UUID?
@@ -36,7 +44,21 @@ final class ChatViewModel: ObservableObject {
         self.selectedAgent = agent
         self.sessionKey = SessionKeyTools.sessionKey(for: agent, baseSessionKey: self.baseSessionKey)
 
-        items = Self.bootstrapItems(sessionKey: self.sessionKey, agent: agent)
+        if let persisted = ChatStore.load(sessionKey: self.sessionKey), !persisted.isEmpty {
+            items = persisted
+        } else {
+            items = Self.bootstrapItems(sessionKey: self.sessionKey, agent: agent)
+        }
+
+        // Debounced persistence.
+        $items
+            .dropFirst()
+            .debounce(for: .milliseconds(350), scheduler: DispatchQueue.main)
+            .sink { [weak self] items in
+                guard let self else { return }
+                ChatStore.save(sessionKey: self.sessionKey, items: items)
+            }
+            .store(in: &cancellables)
     }
 
     private static func bootstrapItems(sessionKey: String, agent: AgentId) -> [ChatItem] {
@@ -72,11 +94,21 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
-        Task {
+        guard !isConnected, !isConnecting else { return }
+        isConnecting = true
+
+        connectTask?.cancel()
+        connectTask = Task {
+            defer { self.isConnecting = false }
             do {
                 _ = try await chatService.connect()
                 isConnected = true
-                items.append(.init(sender: .system, text: "Conectado", style: .status))
+
+                // Avoid spamming "Conectado" if reconnect loops happen.
+                if items.last?.text != "Conectado" {
+                    items.append(.init(sender: .system, text: "Conectado", style: .status))
+                }
+
                 listen()
             } catch {
                 items.append(.init(sender: .system, text: "Error conectando: \(error.localizedDescription)", style: .error))
@@ -85,6 +117,10 @@ final class ChatViewModel: ObservableObject {
     }
 
     func disconnect(showStatus: Bool = true) {
+        connectTask?.cancel()
+        connectTask = nil
+        isConnecting = false
+
         streamTask?.cancel()
         streamTask = nil
         speech.stop()
@@ -112,9 +148,11 @@ final class ChatViewModel: ObservableObject {
 
         sessionKey = newKey
 
-        // Restore or bootstrap thread.
+        // Restore (memory cache) → disk → bootstrap.
         if let cached = cachedThreads[newKey] {
             items = cached
+        } else if let persisted = ChatStore.load(sessionKey: newKey), !persisted.isEmpty {
+            items = persisted
         } else {
             items = Self.bootstrapItems(sessionKey: newKey, agent: agent)
         }

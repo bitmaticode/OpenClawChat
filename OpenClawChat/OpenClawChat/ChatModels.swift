@@ -1,18 +1,18 @@
 import Foundation
 
-enum ChatSender: String, Sendable {
+enum ChatSender: String, Codable, Sendable {
     case user
     case assistant
     case system
 }
 
-enum ChatItemStyle: Sendable {
+enum ChatItemStyle: String, Codable, Sendable {
     case normal
     case status
     case error
 }
 
-struct ChatItem: Identifiable, Sendable {
+struct ChatItem: Identifiable, Codable, Sendable {
     var id: UUID
     let sender: ChatSender
     var text: String
