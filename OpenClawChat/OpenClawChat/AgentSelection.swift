@@ -16,6 +16,15 @@ enum AgentId: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Short name to show in the top bar.
+    var shortTitle: String {
+        switch self {
+        case .main: return "Bit"
+        case .opus: return "Opus"
+        case .codex: return "Codex"
+        }
+    }
+
     /// Useful to show risk/warnings in UI if needed.
     var detail: String? {
         switch self {

@@ -78,10 +78,8 @@ final class ChatViewModel: ObservableObject {
     }
 
     private static func bootstrapItems(sessionKey: String, agent: AgentId) -> [ChatItem] {
-        [
-            .init(sender: .system, text: "Agente: \(agent.title)", style: .status),
-            .init(sender: .system, text: "sessionKey=\(sessionKey)", style: .status)
-        ]
+        // Keep the chat clean by default (agent/sessionKey are visible in UI elsewhere).
+        []
     }
 
     func setTTSEnabled(_ enabled: Bool) {
@@ -97,7 +95,6 @@ final class ChatViewModel: ObservableObject {
 
         do {
             self.chatService = try makeChatService(gatewayURL, token)
-            items.append(.init(sender: .system, text: "Configuración actualizada", style: .status))
         } catch {
             items.append(.init(sender: .system, text: "Error creando cliente: \(error.localizedDescription)", style: .error))
         }
@@ -117,7 +114,6 @@ final class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await chatService.abort(sessionKey: sessionKey, runId: runId)
-                items.append(.init(sender: .system, text: "Abortado", style: .status))
             } catch {
                 items.append(.init(sender: .system, text: "Error abortando: \(error.localizedDescription)", style: .error))
             }
@@ -150,12 +146,6 @@ final class ChatViewModel: ObservableObject {
             do {
                 _ = try await chatService.connect()
                 isConnected = true
-
-                // Avoid spamming "Conectado" if reconnect loops happen.
-                if items.last?.text != "Conectado" {
-                    items.append(.init(sender: .system, text: "Conectado", style: .status))
-                }
-
                 listen()
             } catch {
                 items.append(.init(sender: .system, text: "Error conectando: \(error.localizedDescription)", style: .error))
@@ -173,9 +163,8 @@ final class ChatViewModel: ObservableObject {
         speech.stop()
         Task { await chatService.disconnect() }
         isConnected = false
-        if showStatus {
-            items.append(.init(sender: .system, text: "Desconectado", style: .status))
-        }
+        // Intentionally don't add a status bubble; connection state is shown in the top bar.
+        _ = showStatus
     }
 
     func applySelectedAgent(_ agent: AgentId) {

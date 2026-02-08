@@ -246,45 +246,49 @@ struct ContentView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    showDrawer = true
-                }
-            } label: {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 18, weight: .semibold))
-            }
-
-            Text("Chat")
+        ZStack {
+            // Centered title
+            Text("Chat \(vm.selectedAgent.shortTitle)")
                 .font(.headline)
 
-            if vm.isStreaming {
-                Text("escribiendo…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            if vm.isStreaming {
+            // Left / right controls
+            HStack(spacing: 12) {
                 Button {
-                    vm.abort()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        showDrawer = true
+                    }
                 } label: {
-                    Image(systemName: "stop.circle.fill")
+                    Image(systemName: "line.3.horizontal")
                         .font(.system(size: 18, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
                 }
-                .buttonStyle(.plain)
-            }
 
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(vm.isConnected ? Color.green : Color.gray)
-                    .frame(width: 8, height: 8)
-                Text(vm.isConnected ? "OK" : "OFF")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Spacer()
+
+                if vm.isStreaming {
+                    Text("escribiendo…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if vm.isStreaming {
+                    Button {
+                        vm.abort()
+                    } label: {
+                        Image(systemName: "stop.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(vm.isConnected ? Color.green : Color.gray)
+                        .frame(width: 8, height: 8)
+                    Text(vm.isConnected ? "OK" : "OFF")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.horizontal)

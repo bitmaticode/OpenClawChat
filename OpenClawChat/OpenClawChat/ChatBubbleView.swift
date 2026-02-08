@@ -32,12 +32,7 @@ struct ChatBubbleView: View {
                         }
                     }
 
-                if item.style != .normal {
-                    Text(label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                }
+                // Keep bubbles clean; style/color already conveys status.
             }
             .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
@@ -86,11 +81,5 @@ struct ChatBubbleView: View {
         }
     }
 
-    private var label: String {
-        switch item.style {
-        case .normal: return ""
-        case .status: return "estado"
-        case .error: return "error"
-        }
-    }
+    // label removed
 }
