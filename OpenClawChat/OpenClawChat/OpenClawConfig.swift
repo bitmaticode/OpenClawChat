@@ -1,16 +1,6 @@
 import Foundation
 
 enum OpenClawConfig {
-    /// Default: Tailscale Serve URL (recommended for Simulator + iPhone).
-    /// Override at runtime with env var: OPENCLAW_GATEWAY_URL
-    static var gatewayURL: URL {
-        if let s = ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_URL"],
-           let url = URL(string: s) {
-            return url
-        }
-        return URL(string: "wss://mac-mini-de-carlos.tail23b32.ts.net")!
-    }
-
     /// OpenResponses HTTP endpoint base.
     /// Override at runtime with env var: OPENCLAW_RESPONSES_URL
     static var responsesURL: URL {
@@ -22,8 +12,12 @@ enum OpenClawConfig {
     }
 
     /// Provide at runtime with env var: OPENCLAW_GATEWAY_TOKEN
+    /// or set it from the in-app Settings menu (stored in Keychain).
     static var gatewayToken: String {
-        ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_TOKEN"] ?? ""
+        if let t = ProcessInfo.processInfo.environment["OPENCLAW_GATEWAY_TOKEN"], !t.isEmpty {
+            return t
+        }
+        return GatewayTokenStore.load()
     }
 
     /// Default routes to the Opus agent session to avoid Codex OAuth dependency.
