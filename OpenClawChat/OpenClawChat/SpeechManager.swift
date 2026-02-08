@@ -23,6 +23,17 @@ final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate {
     override init() {
         super.init()
         synthesizer.delegate = self
+        configureAudioSession()
+    }
+
+    private func configureAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try session.setActive(true)
+        } catch {
+            // Best-effort: if this fails, TTS may still work but respect the silent switch.
+        }
     }
 
     func stop() {
@@ -76,7 +87,7 @@ final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate {
         lastEnqueueAt = Date()
 
         let utterance = AVSpeechUtterance(string: trimmed)
-        utterance.voice = AVSpeechSynthesisVoice(language: preferredLanguage(for: trimmed))
+        utterance.voice = preferredVoice(for: trimmed)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         synthesizer.speak(utterance)
     }
@@ -96,12 +107,16 @@ final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate {
         return s[..<limit].lastIndex(of: " ")
     }
 
-    private func preferredLanguage(for text: String) -> String {
-        // Cheap heuristic: default to Spanish if we see common chars/words.
-        let lower = text.lowercased()
-        if lower.contains("¿") || lower.contains("¡") || lower.contains(" que ") || lower.contains("ción") {
-            return "es-ES"
+    private func preferredVoice(for text: String) -> AVSpeechSynthesisVoice? {
+        // Prefer Marisol (Premium) if available (default voice on this iPhone).
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        if let marisol = voices.first(where: {
+            $0.name.lowercased().contains("marisol") && $0.language.hasPrefix("es")
+        }) {
+            return marisol
         }
-        return "en-US"
+
+        // Fallback to Spanish default if installed, then English.
+        return AVSpeechSynthesisVoice(language: "es-ES") ?? AVSpeechSynthesisVoice(language: "en-US")
     }
 }
