@@ -296,7 +296,11 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if stt.isRecording {
+                if stt.isLoadingModel {
+                    Text(stt.statusMessage.isEmpty ? "cargando modelo…" : stt.statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else if stt.isRecording {
                     Text("grabando…")
                         .font(.caption)
                         .foregroundStyle(.red)

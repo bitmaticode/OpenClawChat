@@ -7,9 +7,9 @@ settings:
 packages:
   OpenClawWS:
     path: ../ios-openclaw-ws-mvp
-  whisper:
-    url: https://github.com/ggerganov/whisper.spm
-    branch: master
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit.git
+    from: 0.9.0
 
 targets:
   OpenClawChat:
@@ -21,7 +21,7 @@ targets:
       - path: OpenClawChat/Assets.xcassets
     dependencies:
       - package: OpenClawWS
-      - package: whisper
+      - package: WhisperKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.openclaw.OpenClawChat

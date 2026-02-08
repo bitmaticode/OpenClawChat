@@ -1,0 +1,110 @@
+{
+  "info" : {
+    "arguments" : [
+      "devicectl",
+      "list",
+      "devices",
+      "--json-output",
+      "/Users/carlos/clawd-codex/tmp/devices2.json"
+    ],
+    "commandType" : "devicectl.list.devices",
+    "environment" : {
+
+    },
+    "jsonVersion" : 3,
+    "outcome" : "success",
+    "version" : "506.7"
+  },
+  "result" : {
+    "devices" : [
+      {
+        "capabilities" : [
+          {
+            "featureIdentifier" : "com.apple.coredevice.feature.tags",
+            "name" : "Modify Tags"
+          },
+          {
+            "featureIdentifier" : "com.apple.coredevice.feature.default.user.credentials",
+            "name" : "Modify credentials for default users for a device"
+          },
+          {
+            "featureIdentifier" : "com.apple.coredevice.feature.unpairdevice",
+            "name" : "Unpair Device"
+          }
+        ],
+        "connectionProperties" : {
+          "authenticationType" : "manualPairing",
+          "isMobileDeviceOnly" : false,
+          "lastConnectionDate" : "2026-02-08T12:02:00.000Z",
+          "localHostnames" : [
+            "iPhone-de-Carlos.coredevice.local",
+            "D7CB9C06-BB1A-5EA7-A99F-7623C4351C24.coredevice.local",
+            "00008150-001815021AF8401C.coredevice.local"
+          ],
+          "pairingState" : "paired",
+          "potentialHostnames" : [
+            "iPhone-de-Carlos.coredevice.local",
+            "D7CB9C06-BB1A-5EA7-A99F-7623C4351C24.coredevice.local",
+            "00008150-001815021AF8401C.coredevice.local"
+          ],
+          "transportType" : "localNetwork",
+          "tunnelIPAddress" : "fdb3:b62d:a122::1",
+          "tunnelState" : "connecting",
+          "tunnelTransportProtocol" : "tcp"
+        },
+        "deviceProperties" : {
+          "bootedFromSnapshot" : true,
+          "bootedSnapshotName" : "com.apple.os.update-060C42DB48980A5A3D821315B8DEE3CF8F320F02A2134AC1A4D1FA7504EBFE3E",
+          "ddiServicesAvailable" : false,
+          "developerModeStatus" : "enabled",
+          "hasInternalOSBuild" : false,
+          "name" : "iPhone de Carlos",
+          "osBuildUpdate" : "23C55",
+          "osVersionNumber" : "26.2",
+          "rootFileSystemIsWritable" : false,
+          "screenViewingURL" : "devices://device/open?id=D7CB9C06-BB1A-5EA7-A99F-7623C4351C24",
+          "supportsCheckedAllocations" : true
+        },
+        "hardwareProperties" : {
+          "cpuType" : {
+            "name" : "arm64e",
+            "subType" : 2,
+            "type" : 16777228
+          },
+          "deviceType" : "iPhone",
+          "ecid" : 6778498227650588,
+          "hardwareModel" : "V57AP",
+          "internalStorageCapacity" : 256000000000,
+          "isProductionFused" : true,
+          "marketingName" : "iPhone 17",
+          "platform" : "iOS",
+          "productType" : "iPhone18,3",
+          "reality" : "physical",
+          "serialNumber" : "CJ40G4QPJ2",
+          "supportedCPUTypes" : [
+            {
+              "name" : "arm64e",
+              "subType" : 2,
+              "type" : 16777228
+            },
+            {
+              "name" : "arm64",
+              "subType" : 0,
+              "type" : 16777228
+            }
+          ],
+          "supportedDeviceFamilies" : [
+            1
+          ],
+          "thinningProductType" : "iPhone18,3",
+          "udid" : "00008150-001815021AF8401C"
+        },
+        "identifier" : "D7CB9C06-BB1A-5EA7-A99F-7623C4351C24",
+        "tags" : [
+
+        ],
+        "visibilityClass" : "default"
+      }
+    ]
+  }
+}

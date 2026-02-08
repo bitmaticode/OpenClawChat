@@ -17,7 +17,7 @@
 		5F379B1D58D0F6AF7F981B7B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D0992582CF3041A64EAD0 /* AppSettings.swift */; };
 		622E214FD7CC832E7876129E /* AgentSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82066A14BBDDD0271499FBC5 /* AgentSelection.swift */; };
 		6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */; };
-		6A384C52916D29E4595B8EB6 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 087DEC4A6A9A8C2A3B48D9DC /* whisper */; };
+		6A384C52916D29E4595B8EB6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 295A7DC5C6EA1ED94BF375BD /* WhisperKit */; };
 		81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */; };
 		98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90674D038BC6B82650DF590 /* SideMenuView.swift */; };
 		9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */; };
@@ -68,7 +68,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				003E5565AB736279ACC8101B /* OpenClawWS in Frameworks */,
-				6A384C52916D29E4595B8EB6 /* whisper in Frameworks */,
+				6A384C52916D29E4595B8EB6 /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -148,7 +148,7 @@
 			name = OpenClawChat;
 			packageProductDependencies = (
 				3559DE98399EB16752649DD1 /* OpenClawWS */,
-				087DEC4A6A9A8C2A3B48D9DC /* whisper */,
+				295A7DC5C6EA1ED94BF375BD /* WhisperKit */,
 			);
 			productName = OpenClawChat;
 			productReference = D752469894570E9E323ED21E /* OpenClawChat.app */;
@@ -180,7 +180,7 @@
 			mainGroup = C6F322459D2EDE45AB6186D0;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B0BF5FFC3E2D54C197CAEC1F /* XCRemoteSwiftPackageReference "whisper.spm" */,
+				7E2EACBA8AB1A6FDEC7CA58B /* XCRemoteSwiftPackageReference "WhisperKit" */,
 				2A843D24483634ECF4FE177B /* XCLocalSwiftPackageReference "../ios-openclaw-ws-mvp" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -434,21 +434,21 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		B0BF5FFC3E2D54C197CAEC1F /* XCRemoteSwiftPackageReference "whisper.spm" */ = {
+		7E2EACBA8AB1A6FDEC7CA58B /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ggerganov/whisper.spm";
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
 			requirement = {
-				branch = master;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		087DEC4A6A9A8C2A3B48D9DC /* whisper */ = {
+		295A7DC5C6EA1ED94BF375BD /* WhisperKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B0BF5FFC3E2D54C197CAEC1F /* XCRemoteSwiftPackageReference "whisper.spm" */;
-			productName = whisper;
+			package = 7E2EACBA8AB1A6FDEC7CA58B /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
 		};
 		3559DE98399EB16752649DD1 /* OpenClawWS */ = {
 			isa = XCSwiftPackageProductDependency;
