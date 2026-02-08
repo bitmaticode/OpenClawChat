@@ -6,13 +6,13 @@ import WhisperKit
 final class LocalSTTManager: ObservableObject {
     enum STTError: LocalizedError {
         case micPermissionDenied
-        case modelLoadFailed
+        case modelLoadFailed(String)
         case transcriptionFailed
 
         var errorDescription: String? {
             switch self {
             case .micPermissionDenied: return "Permiso de micrófono denegado"
-            case .modelLoadFailed: return "No pude cargar el modelo Whisper"
+            case .modelLoadFailed(let detail): return "No pude cargar el modelo Whisper: \(detail)"
             case .transcriptionFailed: return "Falló la transcripción local"
             }
         }
@@ -44,7 +44,7 @@ final class LocalSTTManager: ObservableObject {
 
             do {
                 let config = WhisperKitConfig(
-                    model: "large-v3_turbo",
+                    model: nil,
                     verbose: false,
                     logLevel: .none,
                     prewarm: true,
@@ -57,14 +57,14 @@ final class LocalSTTManager: ObservableObject {
             } catch {
                 isLoadingModel = false
                 statusMessage = "Error: \(error.localizedDescription)"
-                throw STTError.modelLoadFailed
+                throw STTError.modelLoadFailed(error.localizedDescription)
             }
         }
 
-        guard let wk = whisperKit else { throw STTError.modelLoadFailed }
+        guard let wk = whisperKit else { throw STTError.modelLoadFailed("sin contexto") }
 
         try configureAudioSession()
-        try await wk.audioProcessor.startRecordingLive { _ in }
+        try wk.audioProcessor.startRecordingLive(inputDeviceID: nil, callback: nil)
 
         isRecording = true
         accumulatedText = ""
