@@ -204,7 +204,7 @@ final class LocalSTTManager: ObservableObject {
     // MARK: - Configuration
 
     /// Model to use. Match LAIA: large-v3 but we use medium for faster load.
-    static let whisperModel = "openai_whisper-medium"
+    static let whisperModel = "openai_whisper-large-v3-v20240930_turbo"
 
     private let silenceThreshold: Float = 0.01
     private let silenceTimeout: TimeInterval = 1.5
