@@ -363,7 +363,6 @@ final class LocalSTTManager: ObservableObject {
     // MARK: - Model Lifecycle
 
     /// Load WhisperKit model. Singleton — only loads once per app lifetime.
-    /// Matches LAIA's WhisperSTTProvider.preloadModel() pattern.
     private func ensureModelLoaded() async throws {
         #if canImport(WhisperKit)
         if Self.sharedWhisperKit != nil { return }
@@ -383,14 +382,33 @@ final class LocalSTTManager: ObservableObject {
         statusMessage = "Descargando modelo…"
 
         let model = Self.whisperModel
-        logger.info("Loading WhisperKit model: \(model)")
+        logger.info("Starting WhisperKit setup for model: \(model)")
         let startTime = Date()
 
         do {
-            // Match LAIA's WhisperKit init EXACTLY:
-            // - model name, computeOptions, prewarm: true, load: true, download: true
+            // Step 1: Download with progress tracking
+            logger.info("Step 1: Downloading model from HuggingFace…")
+            let modelFolder = try await WhisperKit.download(
+                variant: model,
+                from: "argmaxinc/whisperkit-coreml"
+            ) { [weak self] progress in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    let pct = Int(progress.fractionCompleted * 100)
+                    self.downloadProgress = progress.fractionCompleted
+                    self.statusMessage = "Descargando modelo… \(pct)%"
+                }
+            }
+
+            logger.info("Download complete: \(modelFolder.path)")
+            isDownloadingModel = false
+            downloadProgress = 1.0
+            statusMessage = "Cargando modelo…"
+
+            // Step 2: Init WhisperKit with downloaded folder (no re-download)
+            logger.info("Step 2: Loading WhisperKit with modelFolder…")
             let wk = try await WhisperKit(
-                model: model,
+                modelFolder: modelFolder.path,
                 computeOptions: .init(
                     melCompute: .cpuAndNeuralEngine,
                     audioEncoderCompute: .cpuAndNeuralEngine,
@@ -400,17 +418,16 @@ final class LocalSTTManager: ObservableObject {
                 logLevel: .error,
                 prewarm: true,
                 load: true,
-                download: true
+                download: false
             )
 
             let elapsed = Date().timeIntervalSince(startTime)
-            logger.info("WhisperKit model loaded in \(String(format: "%.2f", elapsed))s")
+            logger.info("WhisperKit ready in \(String(format: "%.2f", elapsed))s")
 
             Self.sharedWhisperKit = wk
             Self.isModelLoading = false
             isLoadingModel = false
             isDownloadingModel = false
-            downloadProgress = 1.0
             statusMessage = ""
 
         } catch {
