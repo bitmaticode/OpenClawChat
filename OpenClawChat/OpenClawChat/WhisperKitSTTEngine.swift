@@ -103,10 +103,14 @@ actor WhisperKitSTTEngine {
 
         status?("Cargando modelo…")
 
-        // NOTE: prewarm=false to avoid long first-time specialization loops.
-        // The first transcription will still warm caches.
+        // IMPORTANT:
+        // - Pass downloadBase/tokenizerFolder so WhisperKit can cache & reuse tokenizers
+        //   in a stable location (Application Support/huggingface).
+        // - prewarm=false to avoid long specialization loops.
         let wk = try await WhisperKit(
+            downloadBase: base,
             modelFolder: folder.path,
+            tokenizerFolder: base,
             computeOptions: .init(
                 melCompute: .cpuAndNeuralEngine,
                 audioEncoderCompute: .cpuAndNeuralEngine,
@@ -116,7 +120,8 @@ actor WhisperKitSTTEngine {
             logLevel: .error,
             prewarm: false,
             load: true,
-            download: false
+            download: false,
+            useBackgroundDownloadSession: false
         )
 
         whisperKit = wk
