@@ -19,6 +19,7 @@
 		6750B78C1A3B92A05D6E41E9 /* OpenClawBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C7E7FBB31989E74D560B7A8 /* OpenClawBootstrap.swift */; };
 		6A384C52916D29E4595B8EB6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 295A7DC5C6EA1ED94BF375BD /* WhisperKit */; };
 		81EBC7644E514900EBFD4CB1 /* OpenClawChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC1C8EA7B25C38969B0764C /* OpenClawChatApp.swift */; };
+		91B1C628A473A4D7B2901ECC /* WhisperKitSTTEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08982689BA0A3A8E5584426 /* WhisperKitSTTEngine.swift */; };
 		98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90674D038BC6B82650DF590 /* SideMenuView.swift */; };
 		9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */; };
 		A095C4C9481F1B6B911A2E0D /* ComposerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D825EEAB9C38FB988FD2E0 /* ComposerBar.swift */; };
@@ -51,6 +52,7 @@
 		84DE99D9D7F3586A00B65D4D /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		90705A1C55FF63133B2D2E73 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		984A262B8835284D86758F6A /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
+		A08982689BA0A3A8E5584426 /* WhisperKitSTTEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperKitSTTEngine.swift; sourceTree = "<group>"; };
 		A4360AD8082DAF3ECE68AC1E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenResponsesClient.swift; sourceTree = "<group>"; };
 		AA38787A03300B316B981F6F /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
@@ -104,6 +106,7 @@
 				A58E8E0450D5C73CECBC6FB9 /* OpenResponsesClient.swift */,
 				C90674D038BC6B82650DF590 /* SideMenuView.swift */,
 				AA38787A03300B316B981F6F /* SpeechManager.swift */,
+				A08982689BA0A3A8E5584426 /* WhisperKitSTTEngine.swift */,
 			);
 			path = OpenClawChat;
 			sourceTree = "<group>";
@@ -234,6 +237,7 @@
 				9DECD95DE007C182D59D8750 /* OpenResponsesClient.swift in Sources */,
 				98CED823E740D5117A7696D5 /* SideMenuView.swift in Sources */,
 				F142DBD5FD2C893997662BAB /* SpeechManager.swift in Sources */,
+				91B1C628A473A4D7B2901ECC /* WhisperKitSTTEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

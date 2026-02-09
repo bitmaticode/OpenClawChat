@@ -217,10 +217,7 @@ final class LocalSTTManager: ObservableObject {
     private lazy var captureEngine = AudioCaptureEngine(ringBuffer: ringBuffer)
     private let logger = Logger(subsystem: "ai.openclaw.chat", category: "STT")
 
-    #if canImport(WhisperKit)
-    private static var sharedWhisperKit: WhisperKit?
-    private static var isModelLoading = false
-    #endif
+    // WhisperKit lifecycle is managed by WhisperKitSTTEngine (actor)
 
     private var silenceMonitorTask: Task<Void, Never>?
     private var lastVoiceActivityAt: Date?
@@ -308,200 +305,67 @@ final class LocalSTTManager: ObservableObject {
     // MARK: - Transcription (single shot, like LAIA)
 
     private func transcribeAndSend(_ audioSamples: [Float]) {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             isTranscribing = true
-
-            #if canImport(WhisperKit)
-            guard let wk = Self.sharedWhisperKit else {
-                isTranscribing = false
-                return
-            }
+            defer { isTranscribing = false }
 
             do {
-                // Match LAIA's DecodingOptions exactly
-                // Match LAIA's DecodingOptions exactly
-                let options = DecodingOptions(
-                    task: .transcribe,
-                    language: language,
-                    temperatureFallbackCount: 3,
-                    usePrefillPrompt: false,
-                    usePrefillCache: true,
-                    skipSpecialTokens: true,
-                    withoutTimestamps: true,
-                    clipTimestamps: [],
-                    compressionRatioThreshold: 2.4,
-                    logProbThreshold: -1.0,
-                    noSpeechThreshold: 0.6
+                // Run transcription off the MainActor via WhisperKitSTTEngine (actor), like LAIA.
+                let text = try await WhisperKitSTTEngine.shared.transcribe(
+                    audioSamples: audioSamples,
+                    language: language
                 )
 
-                let results = try await wk.transcribe(
-                    audioArray: audioSamples,
-                    decodeOptions: options
-                )
-
-                // Extract text (LAIA pattern)
-                let transcription = results
-                    .compactMap { $0.text }
-                    .joined(separator: " ")
-                    .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-
-                logger.info("Transcribed: \"\(transcription.prefix(80))\"")
-
-                if !transcription.isEmpty {
-                    onFinal?(transcription)
+                logger.info("Transcribed: \"\(text.prefix(80))\"")
+                let trimmed = text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    onFinal?(trimmed)
                 }
-
             } catch {
                 logger.error("Transcription failed: \(error.localizedDescription)")
             }
-            #endif
-
-            isTranscribing = false
         }
     }
 
     // MARK: - Model Lifecycle
 
-    /// Load WhisperKit model. Singleton — only loads once per app lifetime.
-    private static let modelRepo = "argmaxinc/whisperkit-coreml"
-    private static func modelFolderDefaultsKey(for model: String) -> String {
-        "openclaw.stt.modelFolder.\(model)"
-    }
-
+    /// Ensure the model is ready. Heavy work runs in WhisperKitSTTEngine actor (not MainActor),
+    /// mirroring LAIA's `WhisperSTTProvider` actor approach.
     private func ensureModelLoaded() async throws {
-        #if canImport(WhisperKit)
-        if Self.sharedWhisperKit != nil { return }
-
-        if Self.isModelLoading {
-            while Self.isModelLoading {
-                try await Task.sleep(for: .milliseconds(200))
-            }
-            if Self.sharedWhisperKit != nil { return }
-            throw STTError.modelLoadFailed("Concurrent load failed")
-        }
-
-        Self.isModelLoading = true
-        defer { Self.isModelLoading = false }
-
         isLoadingModel = true
         isDownloadingModel = false
         downloadProgress = 0
         statusMessage = "Preparando modelo…"
 
-        let model = Self.whisperModel
-        let startTime = Date()
-
         do {
-            let downloadBase = try modelDownloadBase()
-
-            // If we have a cached modelFolder, use it (no network)
-            let cachedKey = Self.modelFolderDefaultsKey(for: model)
-            var modelFolderURL: URL? = nil
-            if let cachedPath = UserDefaults.standard.string(forKey: cachedKey) {
-                let url = URL(fileURLWithPath: cachedPath)
-                if isValidModelFolder(url) {
-                    modelFolderURL = url
-                    logger.info("Using cached model folder: \(url.path)")
-                } else {
-                    logger.warning("Cached model folder invalid, will re-download: \(url.path)")
-                    UserDefaults.standard.removeObject(forKey: cachedKey)
-                }
-            }
-
-            if modelFolderURL == nil {
-                // Step 1: Download with progress tracking
-                logger.info("Downloading model from HuggingFace: \(Self.modelRepo) / \(model)")
-                isDownloadingModel = true
-                statusMessage = "Descargando modelo…"
-
-                let modelFolder = try await WhisperKit.download(
-                    variant: model,
-                    downloadBase: downloadBase,
-                    useBackgroundSession: false,
-                    from: Self.modelRepo
-                ) { [weak self] progress in
+            try await WhisperKitSTTEngine.shared.ensureLoaded(
+                model: Self.whisperModel,
+                progress: { [weak self] fraction in
                     Task { @MainActor [weak self] in
-                        guard let self = self else { return }
-                        let pct = Int(progress.fractionCompleted * 100)
-                        self.downloadProgress = progress.fractionCompleted
-                        self.statusMessage = "Descargando modelo… \(pct)%"
+                        self?.downloadProgress = fraction
+                    }
+                },
+                status: { [weak self] text in
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        self.statusMessage = text
+                        self.isDownloadingModel = text.lowercased().contains("descargando")
                     }
                 }
-
-                // WhisperKit.download returns a base folder; the actual variant folder is appended.
-                // We persist the returned folder URL so next time we can load without touching network.
-                modelFolderURL = modelFolder
-                UserDefaults.standard.set(modelFolder.path, forKey: cachedKey)
-
-                logger.info("Download complete: \(modelFolder.path)")
-                isDownloadingModel = false
-                downloadProgress = 1.0
-            }
-
-            guard let finalFolder = modelFolderURL else {
-                throw STTError.modelLoadFailed("Model folder not available")
-            }
-
-            statusMessage = "Cargando modelo…"
-            logger.info("Loading WhisperKit with modelFolder: \(finalFolder.path)")
-
-            // Step 2: Init WhisperKit with downloaded folder (no re-download)
-            // prewarm=false to avoid long first-time specialization loops.
-            let wk = try await WhisperKit(
-                modelFolder: finalFolder.path,
-                computeOptions: .init(
-                    melCompute: .cpuAndNeuralEngine,
-                    audioEncoderCompute: .cpuAndNeuralEngine,
-                    textDecoderCompute: .cpuAndNeuralEngine
-                ),
-                verbose: false,
-                logLevel: .error,
-                prewarm: false,
-                load: true,
-                download: false
             )
 
-            let elapsed = Date().timeIntervalSince(startTime)
-            logger.info("WhisperKit ready in \(String(format: "%.2f", elapsed))s")
-
-            Self.sharedWhisperKit = wk
             isLoadingModel = false
             isDownloadingModel = false
             statusMessage = ""
-
         } catch {
             isLoadingModel = false
             isDownloadingModel = false
             statusMessage = "Error: \(error.localizedDescription)"
-            logger.error("Model load failed: \(error.localizedDescription)")
             throw STTError.modelLoadFailed(error.localizedDescription)
         }
-        #else
-        throw STTError.modelLoadFailed("WhisperKit not available")
-        #endif
     }
 
-    private func modelDownloadBase() throws -> URL {
-        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let base = root.appendingPathComponent("huggingface", isDirectory: true)
-        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        return base
-    }
-
-    private func isValidModelFolder(_ url: URL) -> Bool {
-        let fm = FileManager.default
-        // Basic sanity check: must exist and contain at least the core components.
-        guard fm.fileExists(atPath: url.path) else { return false }
-        let required = ["MelSpectrogram", "AudioEncoder", "TextDecoder"]
-        for name in required {
-            let mlmodelc = url.appendingPathComponent("\(name).mlmodelc")
-            let mlpackage = url.appendingPathComponent("\(name).mlpackage")
-            if !fm.fileExists(atPath: mlmodelc.path) && !fm.fileExists(atPath: mlpackage.path) {
-                return false
-            }
-        }
-        return true
-    }
 
     // MARK: - Helpers
 
