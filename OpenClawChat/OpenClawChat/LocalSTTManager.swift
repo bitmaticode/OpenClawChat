@@ -3,7 +3,13 @@
 //  OpenClawChat
 //
 //  On-device Speech-to-Text using WhisperKit (CoreML + Apple Neural Engine).
-//  Inspired by LAIA's architecture: own AVAudioEngine capture → ring buffer → WhisperKit transcribe.
+//  Architecture: AVAudioEngine capture → ring buffer → WhisperKit transcribe.
+//
+//  Key design decisions (learned from LAIA repo):
+//  - WhisperKit instance is created ONCE and kept alive for the app's lifetime
+//  - Model download + CoreML compilation happens only on first ever use
+//  - No idle unloading (avoids expensive re-compilation)
+//  - Own audio capture via AVAudioEngine (not WhisperKit's startRecordingLive)
 //
 
 import Foundation
@@ -17,7 +23,6 @@ import WhisperKit
 // MARK: - Audio Ring Buffer
 
 /// Thread-safe ring buffer for real-time 16kHz mono audio samples.
-/// Uses OSAllocatedUnfairLock for non-blocking access from the audio render thread.
 final class AudioRingBuffer: @unchecked Sendable {
     static let sampleRate: Double = 16000
     static let bufferDurationSeconds: Double = 30.0
@@ -38,7 +43,6 @@ final class AudioRingBuffer: @unchecked Sendable {
 
     deinit { storage.deallocate() }
 
-    /// Write from audio callback – minimal overhead, real-time safe.
     func write(_ samples: UnsafeBufferPointer<Float>) {
         lock.withLock {
             for s in samples {
@@ -53,7 +57,6 @@ final class AudioRingBuffer: @unchecked Sendable {
         }
     }
 
-    /// Read all available samples in order (consumes them).
     func readAll() -> [Float] {
         lock.withLock {
             guard available > 0 else { return [] }
@@ -67,7 +70,6 @@ final class AudioRingBuffer: @unchecked Sendable {
         }
     }
 
-    /// Peek at the last N samples without consuming.
     func peekLast(_ n: Int) -> [Float] {
         lock.withLock {
             let count = min(n, available)
@@ -79,14 +81,6 @@ final class AudioRingBuffer: @unchecked Sendable {
             }
             return out
         }
-    }
-
-    /// RMS energy of the most recent `n` samples.
-    func recentEnergy(_ n: Int = 1600) -> Float {
-        let samples = peekLast(n)
-        guard !samples.isEmpty else { return 0 }
-        let sumSq = samples.reduce(Float(0)) { $0 + $1 * $1 }
-        return sqrt(sumSq / Float(samples.count))
     }
 
     func clear() {
@@ -110,8 +104,6 @@ final class AudioCaptureEngine: @unchecked Sendable {
     private var _isCapturing = false
 
     var isCapturing: Bool { _isCapturing }
-
-    /// Callback for audio level (RMS) updates – called on audio thread.
     var onAudioLevel: ((Float) -> Void)?
 
     init(ringBuffer: AudioRingBuffer) {
@@ -137,16 +129,14 @@ final class AudioCaptureEngine: @unchecked Sendable {
         if inputFormat.sampleRate != targetFormat.sampleRate ||
            inputFormat.channelCount != targetFormat.channelCount {
             converter = AVAudioConverter(from: inputFormat, to: targetFormat)
-            logger.info("Audio converter: \(inputFormat.sampleRate)Hz → \(self.targetFormat.sampleRate)Hz")
         }
     }
 
     func start() throws {
         guard !_isCapturing else { return }
         let inputFormat = engine.inputNode.outputFormat(forBus: 0)
-        let bufferSize: AVAudioFrameCount = 1600 // 100ms at 16kHz
 
-        engine.inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) {
+        engine.inputNode.installTap(onBus: 0, bufferSize: 1600, format: inputFormat) {
             [weak self] pcmBuffer, _ in
             self?.processCapturedBuffer(pcmBuffer)
         }
@@ -185,14 +175,12 @@ final class AudioCaptureEngine: @unchecked Sendable {
         let ptr = UnsafeBufferPointer(start: channelData, count: length)
         ringBuffer.write(ptr)
 
-        // RMS for level callback
         var rms: Float = 0
         for i in 0..<length { rms += channelData[i] * channelData[i] }
         rms = sqrt(rms / Float(length))
         onAudioLevel?(rms)
     }
 
-    /// Set up audio interruption / route change handling.
     func setupInterruptionHandling(onResume: @escaping () -> Void) {
         NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
@@ -236,23 +224,23 @@ final class LocalSTTManager: ObservableObject {
     @Published var isTranscribing = false
     @Published var isLoadingModel = false
     @Published var isDownloadingModel = false
-    @Published var downloadProgress: Double = 0   // 0.0–1.0
+    @Published var downloadProgress: Double = 0
     @Published var statusMessage = ""
     @Published var audioLevel: Float = 0
 
     // MARK: Callbacks
 
-    /// Partial text as it arrives (for live preview in composer).
     var onPartial: ((String) -> Void)?
-    /// Final transcription after silence detected – auto-sends.
     var onFinal: ((String) -> Void)?
 
     // MARK: Configuration
 
+    /// Which model to use. "openai_whisper-small" is a good balance for iOS.
+    static let whisperModel = "openai_whisper-small"
+
     private let silenceThreshold: Float = 0.008
     private let silenceTimeout: TimeInterval = 1.5
     private let transcriptionInterval: TimeInterval = 1.0
-    private let idleModelTimeout: TimeInterval = 60.0
     private let language = "es"
 
     // MARK: Internal components
@@ -262,11 +250,13 @@ final class LocalSTTManager: ObservableObject {
     private let logger = Logger(subsystem: "ai.openclaw.chat", category: "STT")
 
     #if canImport(WhisperKit)
-    private var whisperKit: WhisperKit?
+    /// Singleton WhisperKit instance — created once, kept alive for app lifetime.
+    /// This avoids re-downloading and re-compiling CoreML models on every mic toggle.
+    private static var sharedWhisperKit: WhisperKit?
+    private static var isModelLoading = false
     #endif
 
     private var transcriptionTask: Task<Void, Never>?
-    private var idleTimer: Task<Void, Never>?
     private var lastSpeechAt: Date?
     private var accumulatedSamples: [Float] = []
     private var lastEmittedText = ""
@@ -296,7 +286,6 @@ final class LocalSTTManager: ObservableObject {
         lastSpeechAt = nil
         isRecording = true
 
-        resetIdleTimer()
         transcriptionTask = Task { [weak self] in
             await self?.transcriptionLoop()
         }
@@ -322,24 +311,14 @@ final class LocalSTTManager: ObservableObject {
         audioLevel = 0
 
         restoreAudioSession()
-        resetIdleTimer()
-    }
-
-    /// Manually unload model to free memory.
-    func unloadModel() {
-        #if canImport(WhisperKit)
-        whisperKit = nil
-        #endif
-        idleTimer?.cancel()
-        idleTimer = nil
-        logger.info("WhisperKit model unloaded")
+        // NOTE: We do NOT unload the model here. WhisperKit stays alive.
     }
 
     // MARK: - Transcription Loop
 
     private func transcriptionLoop() async {
         #if canImport(WhisperKit)
-        guard let wk = whisperKit else { return }
+        guard let wk = Self.sharedWhisperKit else { return }
 
         let options = DecodingOptions(
             verbose: false,
@@ -357,7 +336,7 @@ final class LocalSTTManager: ObservableObject {
             noSpeechThreshold: 0.6
         )
 
-        let minSamples = Int(AudioRingBuffer.sampleRate) // 1 second minimum
+        let minSamples = Int(AudioRingBuffer.sampleRate)
 
         while !Task.isCancelled && isRecording {
             do {
@@ -365,21 +344,16 @@ final class LocalSTTManager: ObservableObject {
             } catch { break }
             guard !Task.isCancelled else { break }
 
-            // Drain ring buffer into accumulated samples
             let newSamples = ringBuffer.readAll()
             if !newSamples.isEmpty {
                 accumulatedSamples.append(contentsOf: newSamples)
             }
 
-            // Check energy for VAD
             let energy = energyOf(Array(accumulatedSamples.suffix(1600)))
-            let hasSpeech = energy > silenceThreshold
-
-            if hasSpeech {
+            if energy > silenceThreshold {
                 lastSpeechAt = Date()
             }
 
-            // Need minimum audio to transcribe
             guard accumulatedSamples.count >= minSamples else { continue }
 
             isTranscribing = true
@@ -405,7 +379,6 @@ final class LocalSTTManager: ObservableObject {
                     onPartial?(fullText)
                 }
 
-                // Silence timeout → finalize and reset
                 if let last = lastSpeechAt,
                    Date().timeIntervalSince(last) >= silenceTimeout,
                    !lastEmittedText.isEmpty {
@@ -426,70 +399,61 @@ final class LocalSTTManager: ObservableObject {
 
     // MARK: - Model Lifecycle
 
-    private let modelVariant = "openai_whisper-large-v3-v20240930_turbo"
-    private let modelRepo = "argmaxinc/whisperkit-coreml"
-
+    /// Ensures the shared WhisperKit instance is loaded. Only does work on first call.
+    /// Subsequent calls return immediately if model is already loaded.
     private func ensureModelLoaded() async throws {
         #if canImport(WhisperKit)
-        guard whisperKit == nil else { return }
+        // Already loaded — nothing to do
+        if Self.sharedWhisperKit != nil { return }
 
+        // Another call is already loading — wait for it
+        if Self.isModelLoading {
+            while Self.isModelLoading {
+                try await Task.sleep(for: .milliseconds(200))
+            }
+            if Self.sharedWhisperKit != nil { return }
+            throw STTError.modelLoadFailed("Concurrent load failed")
+        }
+
+        Self.isModelLoading = true
         isLoadingModel = true
-        statusMessage = "Preparando…"
+        isDownloadingModel = true
+        downloadProgress = 0
+        statusMessage = "Descargando modelo…"
 
         do {
-            let downloadBase = try prepareDownloadBase()
+            let model = Self.whisperModel
+            logger.info("Loading WhisperKit model: \(model) (first time setup)")
 
-            try prepareModelDirectories(downloadBase: downloadBase, repo: modelRepo, modelName: modelVariant)
-            cleanEmptyModelDirs(downloadBase: downloadBase, repo: modelRepo, modelName: modelVariant)
-
-            // Step 1: Download model with progress tracking
-            logger.info("Downloading WhisperKit model: \(self.modelVariant)")
-            isDownloadingModel = true
-            downloadProgress = 0
-
-            let modelFolder = try await WhisperKit.download(
-                variant: modelVariant,
-                downloadBase: downloadBase,
-                useBackgroundSession: false,
-                from: modelRepo
-            ) { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    guard let self = self else { return }
-                    let fraction = progress.fractionCompleted
-                    self.downloadProgress = fraction
-                    let pct = Int(fraction * 100)
-                    self.statusMessage = "Descargando modelo… \(pct)%"
-                }
-            }
-
-            isDownloadingModel = false
-            downloadProgress = 1.0
-            statusMessage = "Compilando para Neural Engine…\n(primera vez tarda ~2 min)"
-            logger.info("Model downloaded to: \(modelFolder.path)")
-
-            // Step 2: Init WhisperKit with the downloaded folder (no download needed)
-            // prewarm: false → skip double compilation, model warms on first transcription
-            let config = WhisperKitConfig(
-                modelFolder: modelFolder.path,
+            // WhisperKit handles everything internally:
+            // - Checks if model already downloaded (cached in Documents/huggingface)
+            // - Downloads only if missing
+            // - CoreML compilation is cached by the OS after first load
+            // - Subsequent inits with same model are fast (~1-2s)
+            let wk = try await WhisperKit(
+                model: model,
                 computeOptions: .init(
                     melCompute: .cpuAndNeuralEngine,
                     audioEncoderCompute: .cpuAndNeuralEngine,
                     textDecoderCompute: .cpuAndNeuralEngine
                 ),
-                verbose: true,
-                logLevel: .debug,
+                verbose: false,
+                logLevel: .error,
                 prewarm: false,
                 load: true,
-                download: false
+                download: true
             )
 
-            whisperKit = try await WhisperKit(config)
+            Self.sharedWhisperKit = wk
+            Self.isModelLoading = false
             isLoadingModel = false
             isDownloadingModel = false
+            downloadProgress = 1.0
             statusMessage = ""
             logger.info("WhisperKit model loaded successfully")
 
         } catch {
+            Self.isModelLoading = false
             isLoadingModel = false
             isDownloadingModel = false
             downloadProgress = 0
@@ -500,19 +464,6 @@ final class LocalSTTManager: ObservableObject {
         #else
         throw STTError.modelLoadFailed("WhisperKit not available")
         #endif
-    }
-
-    private func resetIdleTimer() {
-        idleTimer?.cancel()
-        idleTimer = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(self?.idleModelTimeout ?? 60))
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard let self = self, !self.isRecording else { return }
-                self.logger.info("Idle timeout – unloading WhisperKit model")
-                self.unloadModel()
-            }
-        }
     }
 
     // MARK: - Helpers
@@ -542,43 +493,5 @@ final class LocalSTTManager: ObservableObject {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try? session.setActive(true)
-    }
-
-    private func prepareDownloadBase() throws -> URL {
-        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let base = root.appendingPathComponent("huggingface", isDirectory: true)
-        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        return base
-    }
-
-    private func prepareModelDirectories(downloadBase: URL, repo: String, modelName: String) throws {
-        let repoPath = downloadBase
-            .appendingPathComponent("models", isDirectory: true)
-            .appendingPathComponent(repo, isDirectory: true)
-        let modelPath = repoPath.appendingPathComponent(modelName, isDirectory: true)
-        try FileManager.default.createDirectory(at: modelPath, withIntermediateDirectories: true)
-        // NOTE: Don't pre-create .mlmodelc subdirectories — HubApi's Downloader
-        // creates them automatically via moveDownloadedFile(). Pre-creating empty
-        // dirs causes WhisperKit to detect them as "existing" optional models
-        // (e.g. TextDecoderContextPrefill) and fail to load the empty bundle.
-    }
-
-    /// Remove stale empty .mlmodelc directories that could confuse WhisperKit.
-    private func cleanEmptyModelDirs(downloadBase: URL, repo: String, modelName: String) {
-        let modelPath = downloadBase
-            .appendingPathComponent("models", isDirectory: true)
-            .appendingPathComponent(repo, isDirectory: true)
-            .appendingPathComponent(modelName, isDirectory: true)
-        let fm = FileManager.default
-        guard let contents = try? fm.contentsOfDirectory(atPath: modelPath.path) else { return }
-        for item in contents where item.hasSuffix(".mlmodelc") {
-            let dir = modelPath.appendingPathComponent(item)
-            // If the .mlmodelc dir is empty or has no actual model files, remove it
-            let subItems = (try? fm.contentsOfDirectory(atPath: dir.path)) ?? []
-            if subItems.isEmpty {
-                try? fm.removeItem(at: dir)
-                logger.info("Removed empty model dir: \(item)")
-            }
-        }
     }
 }
