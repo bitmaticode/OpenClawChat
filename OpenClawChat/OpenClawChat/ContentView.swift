@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var showPlusMenu = false
 
     @StateObject private var stt = LocalSTTManager()
+    @State private var didPreloadSTT = false
 
     // UX: only autoscroll if the user hasn't dragged up.
     @State private var autoScrollEnabled = true
@@ -120,7 +121,7 @@ struct ContentView: View {
                         text: $vm.draft,
                         isEnabled: vm.isConnected,
                         isRecording: stt.isRecording,
-                        isMicEnabled: stt.isRecording || (!stt.isTranscribing && vm.isConnected),
+                        isMicEnabled: stt.isRecording || (!stt.isTranscribing && !stt.isLoadingModel && stt.isModelReady && vm.isConnected),
                         onPlus: { showPlusMenu = true },
                         onMic: { handleMicTap() },
                         onSend: { handleSend() }
@@ -218,6 +219,11 @@ struct ContentView: View {
         }
         .task {
             vm.setTTSEnabled(settings.ttsEnabled)
+
+            if !didPreloadSTT {
+                didPreloadSTT = true
+                Task { await stt.preloadModel() }
+            }
 
             stt.onFinal = { finalText in
                 let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)

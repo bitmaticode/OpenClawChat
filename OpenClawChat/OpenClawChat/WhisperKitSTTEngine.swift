@@ -101,20 +101,32 @@ actor WhisperKitSTTEngine {
             throw NSError(domain: "WhisperKitSTTEngine", code: 1, userInfo: [NSLocalizedDescriptionKey: "Model folder unavailable"])
         }
 
+        // Optional component that can massively increase first-load specialization time on iPhone.
+        // WhisperKit only loads this if it exists.
+        let prefillURL = folder.appendingPathComponent("TextDecoderContextPrefill.mlmodelc", isDirectory: true)
+        if FileManager.default.fileExists(atPath: prefillURL.path) {
+            // We keep it simple: remove it to reduce load time.
+            // Decoding still works; you just lose the prefill fast-path.
+            try? FileManager.default.removeItem(at: prefillURL)
+            logger.info("Removed optional prefill model to reduce load time")
+        }
+
         status?("Cargando modelo…")
 
         // IMPORTANT:
         // - Pass downloadBase/tokenizerFolder so WhisperKit can cache & reuse tokenizers
         //   in a stable location (Application Support/huggingface).
+        // - Prefer GPU for MelSpectrogram to avoid long ANE specialization.
         // - prewarm=false to avoid long specialization loops.
         let wk = try await WhisperKit(
             downloadBase: base,
             modelFolder: folder.path,
             tokenizerFolder: base,
             computeOptions: .init(
-                melCompute: .cpuAndNeuralEngine,
+                melCompute: .cpuAndGPU,
                 audioEncoderCompute: .cpuAndNeuralEngine,
-                textDecoderCompute: .cpuAndNeuralEngine
+                textDecoderCompute: .cpuAndNeuralEngine,
+                prefillCompute: .cpuOnly
             ),
             verbose: false,
             logLevel: .error,

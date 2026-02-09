@@ -192,6 +192,7 @@ final class LocalSTTManager: ObservableObject {
     @Published var isTranscribing = false
     @Published var isLoadingModel = false
     @Published var isDownloadingModel = false
+    @Published var isModelReady = false
     @Published var downloadProgress: Double = 0
     @Published var statusMessage = ""
     @Published var audioLevel: Float = 0
@@ -227,7 +228,11 @@ final class LocalSTTManager: ObservableObject {
     /// Start recording. Call ensureModelLoaded first or it will load on demand.
     func startStreaming() async throws {
         try await requestMicPermission()
-        try await ensureModelLoaded()
+
+        // We preload the model on app launch. Don't trigger heavy loading here.
+        guard isModelReady else {
+            throw STTError.modelLoadFailed("Modelo todavía cargando. Abre la app y espera a que termine.")
+        }
 
         try captureEngine.setup()
 
@@ -330,11 +335,11 @@ final class LocalSTTManager: ObservableObject {
 
     // MARK: - Model Lifecycle
 
-    /// Ensure the model is ready. Heavy work runs in WhisperKitSTTEngine actor (not MainActor),
-    /// mirroring LAIA's `WhisperSTTProvider` actor approach.
-    private func ensureModelLoaded() async throws {
+    /// Preload the model (called on app launch). Heavy work runs in WhisperKitSTTEngine actor.
+    func preloadModel() async {
         isLoadingModel = true
         isDownloadingModel = false
+        isModelReady = false
         downloadProgress = 0
         statusMessage = "Preparando modelo…"
 
@@ -357,12 +362,13 @@ final class LocalSTTManager: ObservableObject {
 
             isLoadingModel = false
             isDownloadingModel = false
+            isModelReady = true
             statusMessage = ""
         } catch {
             isLoadingModel = false
             isDownloadingModel = false
+            isModelReady = false
             statusMessage = "Error: \(error.localizedDescription)"
-            throw STTError.modelLoadFailed(error.localizedDescription)
         }
     }
 
