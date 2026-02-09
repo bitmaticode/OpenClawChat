@@ -3,13 +3,15 @@
 //  OpenClawChat
 //
 //  On-device Speech-to-Text using WhisperKit (CoreML + Apple Neural Engine).
-//  Architecture: AVAudioEngine capture → ring buffer → WhisperKit transcribe.
 //
-//  Key design decisions (learned from LAIA repo):
-//  - WhisperKit instance is created ONCE and kept alive for the app's lifetime
-//  - Model download + CoreML compilation happens only on first ever use
-//  - No idle unloading (avoids expensive re-compilation)
-//  - Own audio capture via AVAudioEngine (not WhisperKit's startRecordingLive)
+//  Architecture (following LAIA's pattern):
+//  1. User taps mic → start AVAudioEngine capture
+//  2. Audio accumulates in ring buffer, energy monitored for VAD
+//  3. Silence detected (or user taps mic again) → stop capture
+//  4. Transcribe complete audio in ONE shot (like LAIA's WhisperSTTProvider)
+//  5. Result goes to draft → auto-send
+//
+//  Key: NO continuous polling/re-transcription. Single transcription per utterance.
 //
 
 import Foundation
@@ -22,19 +24,16 @@ import WhisperKit
 
 // MARK: - Audio Ring Buffer
 
-/// Thread-safe ring buffer for real-time 16kHz mono audio samples.
 final class AudioRingBuffer: @unchecked Sendable {
     static let sampleRate: Double = 16000
-    static let bufferDurationSeconds: Double = 30.0
-    static let capacity: Int = Int(sampleRate * bufferDurationSeconds)
+    static let capacity: Int = Int(sampleRate * 30) // 30 seconds max
 
     private let storage: UnsafeMutableBufferPointer<Float>
     private var writeIdx = 0
-    private var readIdx = 0
-    private var available = 0
+    private var count_ = 0
     private let lock = OSAllocatedUnfairLock()
 
-    var count: Int { lock.withLock { available } }
+    var count: Int { lock.withLock { count_ } }
 
     init() {
         storage = .allocate(capacity: Self.capacity)
@@ -48,36 +47,19 @@ final class AudioRingBuffer: @unchecked Sendable {
             for s in samples {
                 storage[writeIdx] = s
                 writeIdx = (writeIdx + 1) % Self.capacity
-                if available < Self.capacity {
-                    available += 1
-                } else {
-                    readIdx = (readIdx + 1) % Self.capacity
-                }
+                if count_ < Self.capacity { count_ += 1 }
             }
         }
     }
 
-    func readAll() -> [Float] {
+    /// Get ALL accumulated samples in order (non-destructive).
+    func getAll() -> [Float] {
         lock.withLock {
-            guard available > 0 else { return [] }
-            var out = [Float](repeating: 0, count: available)
-            for i in 0..<available {
-                out[i] = storage[(readIdx + i) % Self.capacity]
-            }
-            readIdx = (readIdx + available) % Self.capacity
-            available = 0
-            return out
-        }
-    }
-
-    func peekLast(_ n: Int) -> [Float] {
-        lock.withLock {
-            let count = min(n, available)
-            guard count > 0 else { return [] }
-            var out = [Float](repeating: 0, count: count)
-            let start = (readIdx + available - count + Self.capacity) % Self.capacity
-            for i in 0..<count {
-                out[i] = storage[(start + i) % Self.capacity]
+            guard count_ > 0 else { return [] }
+            var out = [Float](repeating: 0, count: count_)
+            let startIdx = (writeIdx - count_ + Self.capacity) % Self.capacity
+            for i in 0..<count_ {
+                out[i] = storage[(startIdx + i) % Self.capacity]
             }
             return out
         }
@@ -86,15 +68,13 @@ final class AudioRingBuffer: @unchecked Sendable {
     func clear() {
         lock.withLock {
             writeIdx = 0
-            readIdx = 0
-            available = 0
+            count_ = 0
         }
     }
 }
 
 // MARK: - Audio Capture Engine
 
-/// AVAudioEngine-based capture at 16kHz mono, feeding an AudioRingBuffer.
 final class AudioCaptureEngine: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let ringBuffer: AudioRingBuffer
@@ -104,6 +84,8 @@ final class AudioCaptureEngine: @unchecked Sendable {
     private var _isCapturing = false
 
     var isCapturing: Bool { _isCapturing }
+
+    /// Called on audio thread with RMS energy level.
     var onAudioLevel: ((Float) -> Void)?
 
     init(ringBuffer: AudioRingBuffer) {
@@ -175,25 +157,11 @@ final class AudioCaptureEngine: @unchecked Sendable {
         let ptr = UnsafeBufferPointer(start: channelData, count: length)
         ringBuffer.write(ptr)
 
+        // RMS energy
         var rms: Float = 0
         for i in 0..<length { rms += channelData[i] * channelData[i] }
         rms = sqrt(rms / Float(length))
         onAudioLevel?(rms)
-    }
-
-    func setupInterruptionHandling(onResume: @escaping () -> Void) {
-        NotificationCenter.default.addObserver(
-            forName: AVAudioSession.interruptionNotification,
-            object: nil, queue: .main
-        ) { [weak self] note in
-            guard let info = note.userInfo,
-                  let typeVal = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  let type = AVAudioSession.InterruptionType(rawValue: typeVal) else { return }
-            if type == .ended {
-                try? self?.start()
-                onResume()
-            }
-        }
     }
 }
 
@@ -202,7 +170,7 @@ final class AudioCaptureEngine: @unchecked Sendable {
 @MainActor
 final class LocalSTTManager: ObservableObject {
 
-    // MARK: Errors
+    // MARK: - Errors
 
     enum STTError: LocalizedError {
         case micPermissionDenied
@@ -218,7 +186,7 @@ final class LocalSTTManager: ObservableObject {
         }
     }
 
-    // MARK: Published state
+    // MARK: - Published state
 
     @Published var isRecording = false
     @Published var isTranscribing = false
@@ -228,185 +196,178 @@ final class LocalSTTManager: ObservableObject {
     @Published var statusMessage = ""
     @Published var audioLevel: Float = 0
 
-    // MARK: Callbacks
+    // MARK: - Callbacks
 
-    var onPartial: ((String) -> Void)?
+    /// Called with final transcription text (ready to send).
     var onFinal: ((String) -> Void)?
 
-    // MARK: Configuration
+    // MARK: - Configuration
 
-    /// Which model to use. "openai_whisper-small" is a good balance for iOS.
+    /// Model to use. Match LAIA: large-v3 but we use medium for faster load.
     static let whisperModel = "openai_whisper-medium"
 
-    private let silenceThreshold: Float = 0.008
+    private let silenceThreshold: Float = 0.01
     private let silenceTimeout: TimeInterval = 1.5
-    private let transcriptionInterval: TimeInterval = 1.0
+    private let maxRecordingDuration: TimeInterval = 30.0
     private let language = "es"
 
-    // MARK: Internal components
+    // MARK: - Internal
 
     private let ringBuffer = AudioRingBuffer()
     private lazy var captureEngine = AudioCaptureEngine(ringBuffer: ringBuffer)
     private let logger = Logger(subsystem: "ai.openclaw.chat", category: "STT")
 
     #if canImport(WhisperKit)
-    /// Singleton WhisperKit instance — created once, kept alive for app lifetime.
-    /// This avoids re-downloading and re-compiling CoreML models on every mic toggle.
     private static var sharedWhisperKit: WhisperKit?
     private static var isModelLoading = false
     #endif
 
-    private var transcriptionTask: Task<Void, Never>?
-    private var lastSpeechAt: Date?
-    private var accumulatedSamples: [Float] = []
-    private var lastEmittedText = ""
+    private var silenceMonitorTask: Task<Void, Never>?
+    private var lastVoiceActivityAt: Date?
 
     // MARK: - Public API
 
+    /// Start recording. Call ensureModelLoaded first or it will load on demand.
     func startStreaming() async throws {
         try await requestMicPermission()
         try await ensureModelLoaded()
 
         try captureEngine.setup()
+
         captureEngine.onAudioLevel = { [weak self] level in
             Task { @MainActor [weak self] in
                 self?.audioLevel = level
             }
         }
-        captureEngine.setupInterruptionHandling { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.logger.info("Audio resumed after interruption")
-            }
-        }
 
-        try captureEngine.start()
         ringBuffer.clear()
-        accumulatedSamples = []
-        lastEmittedText = ""
-        lastSpeechAt = nil
+        lastVoiceActivityAt = Date()
         isRecording = true
 
-        transcriptionTask = Task { [weak self] in
-            await self?.transcriptionLoop()
-        }
+        try captureEngine.start()
+        startSilenceMonitor()
     }
 
+    /// Stop recording and transcribe the accumulated audio.
     func stopStreaming(sendPending: Bool = true) {
-        transcriptionTask?.cancel()
-        transcriptionTask = nil
+        silenceMonitorTask?.cancel()
+        silenceMonitorTask = nil
         captureEngine.stop()
+
+        let wasRecording = isRecording
         isRecording = false
-        isTranscribing = false
-
-        if sendPending {
-            let pending = lastEmittedText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !pending.isEmpty {
-                onFinal?(pending)
-            }
-        }
-
-        accumulatedSamples = []
-        lastEmittedText = ""
-        lastSpeechAt = nil
         audioLevel = 0
 
+        if sendPending && wasRecording {
+            let samples = ringBuffer.getAll()
+            if samples.count > Int(AudioRingBuffer.sampleRate * 0.3) { // at least 0.3s of audio
+                transcribeAndSend(samples)
+            }
+        }
+
         restoreAudioSession()
-        // NOTE: We do NOT unload the model here. WhisperKit stays alive.
     }
 
-    // MARK: - Transcription Loop
+    // MARK: - Silence Monitor
 
-    private func transcriptionLoop() async {
-        #if canImport(WhisperKit)
-        guard let wk = Self.sharedWhisperKit else { return }
+    /// Monitors audio energy. When silence persists for `silenceTimeout`, stops recording and transcribes.
+    private func startSilenceMonitor() {
+        silenceMonitorTask = Task { [weak self] in
+            guard let self = self else { return }
 
-        let options = DecodingOptions(
-            verbose: false,
-            task: .transcribe,
-            language: language,
-            temperature: 0,
-            temperatureFallbackCount: 3,
-            usePrefillPrompt: true,
-            usePrefillCache: true,
-            skipSpecialTokens: true,
-            withoutTimestamps: true,
-            clipTimestamps: [],
-            compressionRatioThreshold: 2.4,
-            logProbThreshold: -1.0,
-            noSpeechThreshold: 0.6
-        )
+            while !Task.isCancelled && self.isRecording {
+                do {
+                    try await Task.sleep(for: .milliseconds(100))
+                } catch { break }
 
-        let minSamples = Int(AudioRingBuffer.sampleRate)
+                let level = self.audioLevel
 
-        while !Task.isCancelled && isRecording {
-            do {
-                try await Task.sleep(for: .seconds(transcriptionInterval))
-            } catch { break }
-            guard !Task.isCancelled else { break }
+                if level > self.silenceThreshold {
+                    self.lastVoiceActivityAt = Date()
+                }
 
-            let newSamples = ringBuffer.readAll()
-            if !newSamples.isEmpty {
-                accumulatedSamples.append(contentsOf: newSamples)
+                // Auto-stop after silence timeout
+                if let lastVoice = self.lastVoiceActivityAt,
+                   Date().timeIntervalSince(lastVoice) >= self.silenceTimeout {
+                    self.logger.info("Silence detected — stopping recording")
+                    self.stopStreaming(sendPending: true)
+                    break
+                }
+
+                // Safety: max recording duration
+                if let lastVoice = self.lastVoiceActivityAt,
+                   Date().timeIntervalSince(lastVoice) >= self.maxRecordingDuration {
+                    self.logger.info("Max recording duration — stopping")
+                    self.stopStreaming(sendPending: true)
+                    break
+                }
             }
+        }
+    }
 
-            let energy = energyOf(Array(accumulatedSamples.suffix(1600)))
-            if energy > silenceThreshold {
-                lastSpeechAt = Date()
-            }
+    // MARK: - Transcription (single shot, like LAIA)
 
-            guard accumulatedSamples.count >= minSamples else { continue }
-
+    private func transcribeAndSend(_ audioSamples: [Float]) {
+        Task {
             isTranscribing = true
 
+            #if canImport(WhisperKit)
+            guard let wk = Self.sharedWhisperKit else {
+                isTranscribing = false
+                return
+            }
+
             do {
+                // Match LAIA's DecodingOptions exactly
+                // Match LAIA's DecodingOptions exactly
+                let options = DecodingOptions(
+                    task: .transcribe,
+                    language: language,
+                    temperatureFallbackCount: 3,
+                    usePrefillPrompt: false,
+                    usePrefillCache: true,
+                    skipSpecialTokens: true,
+                    withoutTimestamps: true,
+                    clipTimestamps: [],
+                    compressionRatioThreshold: 2.4,
+                    logProbThreshold: -1.0,
+                    noSpeechThreshold: 0.6
+                )
+
                 let results = try await wk.transcribe(
-                    audioArray: accumulatedSamples,
+                    audioArray: audioSamples,
                     decodeOptions: options
                 )
 
-                guard !Task.isCancelled else { break }
-
-                let fullText: String = results
-                    .map { result -> String in
-                        result.segments.map { $0.text }.joined()
-                    }
-                    .joined()
+                // Extract text (LAIA pattern)
+                let transcription = results
+                    .compactMap { $0.text }
+                    .joined(separator: " ")
                     .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
-                if !fullText.isEmpty && fullText != lastEmittedText {
-                    lastSpeechAt = Date()
-                    lastEmittedText = fullText
-                    onPartial?(fullText)
+                logger.info("Transcribed: \"\(transcription.prefix(80))\"")
+
+                if !transcription.isEmpty {
+                    onFinal?(transcription)
                 }
 
-                if let last = lastSpeechAt,
-                   Date().timeIntervalSince(last) >= silenceTimeout,
-                   !lastEmittedText.isEmpty {
-                    let final = lastEmittedText
-                    lastEmittedText = ""
-                    accumulatedSamples = []
-                    lastSpeechAt = nil
-                    onFinal?(final)
-                }
             } catch {
-                logger.error("Transcription error: \(error.localizedDescription)")
+                logger.error("Transcription failed: \(error.localizedDescription)")
             }
+            #endif
 
             isTranscribing = false
         }
-        #endif
     }
 
     // MARK: - Model Lifecycle
 
-    /// Ensures the shared WhisperKit instance is loaded. Only does work on first call.
-    /// Subsequent calls return immediately if model is already loaded.
+    /// Load WhisperKit model. Singleton — only loads once per app lifetime.
+    /// Matches LAIA's WhisperSTTProvider.preloadModel() pattern.
     private func ensureModelLoaded() async throws {
         #if canImport(WhisperKit)
-        // Already loaded — nothing to do
         if Self.sharedWhisperKit != nil { return }
 
-        // Another call is already loading — wait for it
         if Self.isModelLoading {
             while Self.isModelLoading {
                 try await Task.sleep(for: .milliseconds(200))
@@ -421,15 +382,13 @@ final class LocalSTTManager: ObservableObject {
         downloadProgress = 0
         statusMessage = "Descargando modelo…"
 
-        do {
-            let model = Self.whisperModel
-            logger.info("Loading WhisperKit model: \(model) (first time setup)")
+        let model = Self.whisperModel
+        logger.info("Loading WhisperKit model: \(model)")
+        let startTime = Date()
 
-            // WhisperKit handles everything internally:
-            // - Checks if model already downloaded (cached in Documents/huggingface)
-            // - Downloads only if missing
-            // - CoreML compilation is cached by the OS after first load
-            // - Subsequent inits with same model are fast (~1-2s)
+        do {
+            // Match LAIA's WhisperKit init EXACTLY:
+            // - model name, computeOptions, prewarm: true, load: true, download: true
             let wk = try await WhisperKit(
                 model: model,
                 computeOptions: .init(
@@ -439,10 +398,13 @@ final class LocalSTTManager: ObservableObject {
                 ),
                 verbose: false,
                 logLevel: .error,
-                prewarm: false,
+                prewarm: true,
                 load: true,
                 download: true
             )
+
+            let elapsed = Date().timeIntervalSince(startTime)
+            logger.info("WhisperKit model loaded in \(String(format: "%.2f", elapsed))s")
 
             Self.sharedWhisperKit = wk
             Self.isModelLoading = false
@@ -450,13 +412,11 @@ final class LocalSTTManager: ObservableObject {
             isDownloadingModel = false
             downloadProgress = 1.0
             statusMessage = ""
-            logger.info("WhisperKit model loaded successfully")
 
         } catch {
             Self.isModelLoading = false
             isLoadingModel = false
             isDownloadingModel = false
-            downloadProgress = 0
             statusMessage = "Error: \(error.localizedDescription)"
             logger.error("Model load failed: \(error.localizedDescription)")
             throw STTError.modelLoadFailed(error.localizedDescription)
@@ -467,12 +427,6 @@ final class LocalSTTManager: ObservableObject {
     }
 
     // MARK: - Helpers
-
-    private func energyOf(_ samples: [Float]) -> Float {
-        guard !samples.isEmpty else { return 0 }
-        let sumSq = samples.reduce(Float(0)) { $0 + $1 * $1 }
-        return sqrt(sumSq / Float(samples.count))
-    }
 
     private func requestMicPermission() async throws {
         let session = AVAudioSession.sharedInstance()

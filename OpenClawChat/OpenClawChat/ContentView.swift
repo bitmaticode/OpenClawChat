@@ -219,12 +219,6 @@ struct ContentView: View {
         .task {
             vm.setTTSEnabled(settings.ttsEnabled)
 
-            stt.onPartial = { partialText in
-                DispatchQueue.main.async {
-                    self.vm.draft = partialText
-                }
-            }
-
             stt.onFinal = { finalText in
                 let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
