@@ -236,7 +236,7 @@ final class LocalSTTManager: ObservableObject {
     // MARK: Configuration
 
     /// Which model to use. "openai_whisper-small" is a good balance for iOS.
-    static let whisperModel = "openai_whisper-small"
+    static let whisperModel = "openai_whisper-medium"
 
     private let silenceThreshold: Float = 0.008
     private let silenceTimeout: TimeInterval = 1.5
