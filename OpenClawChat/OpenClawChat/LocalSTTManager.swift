@@ -363,6 +363,11 @@ final class LocalSTTManager: ObservableObject {
     // MARK: - Model Lifecycle
 
     /// Load WhisperKit model. Singleton — only loads once per app lifetime.
+    private static let modelRepo = "argmaxinc/whisperkit-coreml"
+    private static func modelFolderDefaultsKey(for model: String) -> String {
+        "openclaw.stt.modelFolder.\(model)"
+    }
+
     private func ensureModelLoaded() async throws {
         #if canImport(WhisperKit)
         if Self.sharedWhisperKit != nil { return }
@@ -376,39 +381,74 @@ final class LocalSTTManager: ObservableObject {
         }
 
         Self.isModelLoading = true
+        defer { Self.isModelLoading = false }
+
         isLoadingModel = true
-        isDownloadingModel = true
+        isDownloadingModel = false
         downloadProgress = 0
-        statusMessage = "Descargando modelo…"
+        statusMessage = "Preparando modelo…"
 
         let model = Self.whisperModel
-        logger.info("Starting WhisperKit setup for model: \(model)")
         let startTime = Date()
 
         do {
-            // Step 1: Download with progress tracking
-            logger.info("Step 1: Downloading model from HuggingFace…")
-            let modelFolder = try await WhisperKit.download(
-                variant: model,
-                from: "argmaxinc/whisperkit-coreml"
-            ) { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    guard let self = self else { return }
-                    let pct = Int(progress.fractionCompleted * 100)
-                    self.downloadProgress = progress.fractionCompleted
-                    self.statusMessage = "Descargando modelo… \(pct)%"
+            let downloadBase = try modelDownloadBase()
+
+            // If we have a cached modelFolder, use it (no network)
+            let cachedKey = Self.modelFolderDefaultsKey(for: model)
+            var modelFolderURL: URL? = nil
+            if let cachedPath = UserDefaults.standard.string(forKey: cachedKey) {
+                let url = URL(fileURLWithPath: cachedPath)
+                if isValidModelFolder(url) {
+                    modelFolderURL = url
+                    logger.info("Using cached model folder: \(url.path)")
+                } else {
+                    logger.warning("Cached model folder invalid, will re-download: \(url.path)")
+                    UserDefaults.standard.removeObject(forKey: cachedKey)
                 }
             }
 
-            logger.info("Download complete: \(modelFolder.path)")
-            isDownloadingModel = false
-            downloadProgress = 1.0
+            if modelFolderURL == nil {
+                // Step 1: Download with progress tracking
+                logger.info("Downloading model from HuggingFace: \(Self.modelRepo) / \(model)")
+                isDownloadingModel = true
+                statusMessage = "Descargando modelo…"
+
+                let modelFolder = try await WhisperKit.download(
+                    variant: model,
+                    downloadBase: downloadBase,
+                    useBackgroundSession: false,
+                    from: Self.modelRepo
+                ) { [weak self] progress in
+                    Task { @MainActor [weak self] in
+                        guard let self = self else { return }
+                        let pct = Int(progress.fractionCompleted * 100)
+                        self.downloadProgress = progress.fractionCompleted
+                        self.statusMessage = "Descargando modelo… \(pct)%"
+                    }
+                }
+
+                // WhisperKit.download returns a base folder; the actual variant folder is appended.
+                // We persist the returned folder URL so next time we can load without touching network.
+                modelFolderURL = modelFolder
+                UserDefaults.standard.set(modelFolder.path, forKey: cachedKey)
+
+                logger.info("Download complete: \(modelFolder.path)")
+                isDownloadingModel = false
+                downloadProgress = 1.0
+            }
+
+            guard let finalFolder = modelFolderURL else {
+                throw STTError.modelLoadFailed("Model folder not available")
+            }
+
             statusMessage = "Cargando modelo…"
+            logger.info("Loading WhisperKit with modelFolder: \(finalFolder.path)")
 
             // Step 2: Init WhisperKit with downloaded folder (no re-download)
-            logger.info("Step 2: Loading WhisperKit with modelFolder…")
+            // prewarm=false to avoid long first-time specialization loops.
             let wk = try await WhisperKit(
-                modelFolder: modelFolder.path,
+                modelFolder: finalFolder.path,
                 computeOptions: .init(
                     melCompute: .cpuAndNeuralEngine,
                     audioEncoderCompute: .cpuAndNeuralEngine,
@@ -416,7 +456,7 @@ final class LocalSTTManager: ObservableObject {
                 ),
                 verbose: false,
                 logLevel: .error,
-                prewarm: true,
+                prewarm: false,
                 load: true,
                 download: false
             )
@@ -425,13 +465,11 @@ final class LocalSTTManager: ObservableObject {
             logger.info("WhisperKit ready in \(String(format: "%.2f", elapsed))s")
 
             Self.sharedWhisperKit = wk
-            Self.isModelLoading = false
             isLoadingModel = false
             isDownloadingModel = false
             statusMessage = ""
 
         } catch {
-            Self.isModelLoading = false
             isLoadingModel = false
             isDownloadingModel = false
             statusMessage = "Error: \(error.localizedDescription)"
@@ -441,6 +479,28 @@ final class LocalSTTManager: ObservableObject {
         #else
         throw STTError.modelLoadFailed("WhisperKit not available")
         #endif
+    }
+
+    private func modelDownloadBase() throws -> URL {
+        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let base = root.appendingPathComponent("huggingface", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }
+
+    private func isValidModelFolder(_ url: URL) -> Bool {
+        let fm = FileManager.default
+        // Basic sanity check: must exist and contain at least the core components.
+        guard fm.fileExists(atPath: url.path) else { return false }
+        let required = ["MelSpectrogram", "AudioEncoder", "TextDecoder"]
+        for name in required {
+            let mlmodelc = url.appendingPathComponent("\(name).mlmodelc")
+            let mlpackage = url.appendingPathComponent("\(name).mlpackage")
+            if !fm.fileExists(atPath: mlmodelc.path) && !fm.fileExists(atPath: mlpackage.path) {
+                return false
+            }
+        }
+        return true
     }
 
     // MARK: - Helpers
