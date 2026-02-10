@@ -130,9 +130,9 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if stt.isLoadingModel {
+            if stt.isDownloadingModel {
                 ModelDownloadOverlay(
-                    isDownloading: stt.isDownloadingModel,
+                    isDownloading: true,
                     progress: stt.downloadProgress,
                     statusMessage: stt.statusMessage
                 )
@@ -225,6 +225,12 @@ struct ContentView: View {
                 Task { await stt.preloadModel() }
             }
 
+            stt.onPartial = { partialText in
+                DispatchQueue.main.async {
+                    self.vm.draft = partialText
+                }
+            }
+
             stt.onFinal = { finalText in
                 let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
@@ -301,7 +307,11 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if stt.isRecording {
+                if stt.isLoadingModel && !stt.isDownloadingModel {
+                    Text("preparando STT…")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else if stt.isRecording {
                     Text("grabando…")
                         .font(.caption)
                         .foregroundStyle(.red)

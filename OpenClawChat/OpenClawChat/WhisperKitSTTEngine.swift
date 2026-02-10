@@ -23,6 +23,8 @@ actor WhisperKitSTTEngine {
     private var loadedModel: String?
     #endif
 
+    private var isLoading = false
+
     private static let modelRepo = "argmaxinc/whisperkit-coreml"
 
     private func modelFolderDefaultsKey(for model: String) -> String {
@@ -61,6 +63,16 @@ actor WhisperKitSTTEngine {
             _ = wk
             return
         }
+
+        // Prevent concurrent loading; wait if another load is in progress
+        if isLoading {
+            logger.info("Model already loading, waiting…")
+            while isLoading { try await Task.sleep(for: .milliseconds(200)) }
+            if whisperKit != nil, loadedModel == model { return }
+        }
+
+        isLoading = true
+        defer { isLoading = false }
 
         status?("Preparando modelo…")
         let start = Date()
@@ -101,36 +113,25 @@ actor WhisperKitSTTEngine {
             throw NSError(domain: "WhisperKitSTTEngine", code: 1, userInfo: [NSLocalizedDescriptionKey: "Model folder unavailable"])
         }
 
-        // Optional component that can massively increase first-load specialization time on iPhone.
-        // WhisperKit only loads this if it exists.
-        let prefillURL = folder.appendingPathComponent("TextDecoderContextPrefill.mlmodelc", isDirectory: true)
-        if FileManager.default.fileExists(atPath: prefillURL.path) {
-            // We keep it simple: remove it to reduce load time.
-            // Decoding still works; you just lose the prefill fast-path.
-            try? FileManager.default.removeItem(at: prefillURL)
-            logger.info("Removed optional prefill model to reduce load time")
-        }
-
         status?("Cargando modelo…")
 
-        // IMPORTANT:
-        // - Pass downloadBase/tokenizerFolder so WhisperKit can cache & reuse tokenizers
-        //   in a stable location (Application Support/huggingface).
-        // - Prefer GPU for MelSpectrogram to avoid long ANE specialization.
-        // - prewarm=false to avoid long specialization loops.
+        // Use cpuAndGPU for all compute units:
+        // - GPU compilation takes seconds (vs ANE's minutes)
+        // - Prevents the "stuck compiling" issue when ANE cache is evicted
+        // - Turbo model is already optimised for speed
         let wk = try await WhisperKit(
             downloadBase: base,
             modelFolder: folder.path,
             tokenizerFolder: base,
             computeOptions: .init(
                 melCompute: .cpuAndGPU,
-                audioEncoderCompute: .cpuAndNeuralEngine,
-                textDecoderCompute: .cpuAndNeuralEngine,
-                prefillCompute: .cpuOnly
+                audioEncoderCompute: .cpuAndGPU,
+                textDecoderCompute: .cpuAndGPU,
+                prefillCompute: .cpuAndGPU
             ),
             verbose: false,
             logLevel: .error,
-            prewarm: false,
+            prewarm: true,
             load: true,
             download: false,
             useBackgroundDownloadSession: false

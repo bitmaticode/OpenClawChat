@@ -4,14 +4,12 @@
 //
 //  On-device Speech-to-Text using WhisperKit (CoreML + Apple Neural Engine).
 //
-//  Architecture (following LAIA's pattern):
+//  Architecture:
 //  1. User taps mic → start AVAudioEngine capture
 //  2. Audio accumulates in ring buffer, energy monitored for VAD
-//  3. Silence detected (or user taps mic again) → stop capture
-//  4. Transcribe complete audio in ONE shot (like LAIA's WhisperSTTProvider)
-//  5. Result goes to draft → auto-send
-//
-//  Key: NO continuous polling/re-transcription. Single transcription per utterance.
+//  3. While recording, periodic transcription updates partial text in real-time
+//  4. Silence detected (or user taps mic again) → stop capture
+//  5. Final transcription → auto-send
 //
 
 import Foundation
@@ -196,18 +194,21 @@ final class LocalSTTManager: ObservableObject {
     @Published var downloadProgress: Double = 0
     @Published var statusMessage = ""
     @Published var audioLevel: Float = 0
+    @Published var partialText = ""
 
     // MARK: - Callbacks
 
     /// Called with final transcription text (ready to send).
     var onFinal: ((String) -> Void)?
+    /// Called with partial (streaming) transcription text while recording.
+    var onPartial: ((String) -> Void)?
 
     // MARK: - Configuration
 
     /// Model to use. Match LAIA: large-v3 but we use medium for faster load.
     static let whisperModel = "openai_whisper-large-v3-v20240930_turbo"
 
-    private let silenceThreshold: Float = 0.01
+    private let silenceThreshold: Float = 0.005
     private let silenceTimeout: TimeInterval = 1.5
     private let maxRecordingDuration: TimeInterval = 30.0
     private let language = "es"
@@ -221,6 +222,7 @@ final class LocalSTTManager: ObservableObject {
     // WhisperKit lifecycle is managed by WhisperKitSTTEngine (actor)
 
     private var silenceMonitorTask: Task<Void, Never>?
+    private var streamingTranscribeTask: Task<Void, Never>?
     private var lastVoiceActivityAt: Date?
 
     // MARK: - Public API
@@ -243,17 +245,21 @@ final class LocalSTTManager: ObservableObject {
         }
 
         ringBuffer.clear()
+        partialText = ""
         lastVoiceActivityAt = Date()
         isRecording = true
 
         try captureEngine.start()
         startSilenceMonitor()
+        startStreamingTranscription()
     }
 
     /// Stop recording and transcribe the accumulated audio.
     func stopStreaming(sendPending: Bool = true) {
         silenceMonitorTask?.cancel()
         silenceMonitorTask = nil
+        streamingTranscribeTask?.cancel()
+        streamingTranscribeTask = nil
         captureEngine.stop()
 
         let wasRecording = isRecording
@@ -263,8 +269,12 @@ final class LocalSTTManager: ObservableObject {
         if sendPending && wasRecording {
             let samples = ringBuffer.getAll()
             if samples.count > Int(AudioRingBuffer.sampleRate * 0.3) { // at least 0.3s of audio
-                transcribeAndSend(samples)
+                finalTranscribeAndSend(samples)
+            } else {
+                partialText = ""
             }
+        } else {
+            partialText = ""
         }
 
         restoreAudioSession()
@@ -277,14 +287,19 @@ final class LocalSTTManager: ObservableObject {
         silenceMonitorTask = Task { [weak self] in
             guard let self = self else { return }
 
+            // Smoothed energy avoids false silence triggers on brief inter-word gaps.
+            // α=0.3 at 100ms poll ≈ 300ms smoothing window.
+            var smoothedLevel: Float = 0.05
+
             while !Task.isCancelled && self.isRecording {
                 do {
                     try await Task.sleep(for: .milliseconds(100))
                 } catch { break }
 
                 let level = self.audioLevel
+                smoothedLevel = 0.3 * level + 0.7 * smoothedLevel
 
-                if level > self.silenceThreshold {
+                if smoothedLevel > self.silenceThreshold {
                     self.lastVoiceActivityAt = Date()
                 }
 
@@ -307,28 +322,64 @@ final class LocalSTTManager: ObservableObject {
         }
     }
 
-    // MARK: - Transcription (single shot, like LAIA)
+    // MARK: - Streaming Transcription
 
-    private func transcribeAndSend(_ audioSamples: [Float]) {
+    /// Periodically transcribes accumulated audio while recording, providing real-time partial results.
+    private func startStreamingTranscription() {
+        streamingTranscribeTask = Task { [weak self] in
+            guard let self else { return }
+
+            // Give initial audio time to accumulate
+            try? await Task.sleep(for: .seconds(1.0))
+
+            while !Task.isCancelled && self.isRecording {
+                let samples = self.ringBuffer.getAll()
+                let minSamples = Int(AudioRingBuffer.sampleRate * 0.5)
+
+                if samples.count > minSamples {
+                    do {
+                        let text = try await WhisperKitSTTEngine.shared.transcribe(
+                            audioSamples: samples,
+                            language: self.language
+                        )
+                        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty && self.isRecording {
+                            self.partialText = trimmed
+                            self.onPartial?(trimmed)
+                        }
+                    } catch {
+                        self.logger.error("Streaming transcription error: \(error.localizedDescription)")
+                    }
+                }
+
+                try? await Task.sleep(for: .seconds(1.5))
+            }
+        }
+    }
+
+    /// Final transcription after recording stops — sends the result.
+    private func finalTranscribeAndSend(_ audioSamples: [Float]) {
         Task { [weak self] in
             guard let self else { return }
             isTranscribing = true
-            defer { isTranscribing = false }
+            defer {
+                isTranscribing = false
+                partialText = ""
+            }
 
             do {
-                // Run transcription off the MainActor via WhisperKitSTTEngine (actor), like LAIA.
                 let text = try await WhisperKitSTTEngine.shared.transcribe(
                     audioSamples: audioSamples,
                     language: language
                 )
 
-                logger.info("Transcribed: \"\(text.prefix(80))\"")
+                logger.info("Final transcription: \"\(text.prefix(80))\"")
                 let trimmed = text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 if !trimmed.isEmpty {
                     onFinal?(trimmed)
                 }
             } catch {
-                logger.error("Transcription failed: \(error.localizedDescription)")
+                logger.error("Final transcription failed: \(error.localizedDescription)")
             }
         }
     }

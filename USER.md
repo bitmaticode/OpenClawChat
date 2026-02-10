@@ -6,6 +6,7 @@
 - **What to call them:** Carlos
 - **Pronouns:** *(optional)*
 - **Timezone:** Europe/Madrid
+- **Phone:** +34 623 768 682
 - **Notes:** 
 
 ## Context
